@@ -1,6 +1,6 @@
 # CODEMAP — TigerTagSplashESP32.ino
 
-Navigation map for the firmware's single **~16 500-line** source file. Never read
+Navigation map for the firmware's single **~18 500-line** source file. Never read
 it whole; that is the entire point of this document.
 
 **The workflow, every time:**
@@ -25,34 +25,34 @@ the source, so this table cannot silently disagree with the file.
 
 | § | Name | Lines |
 |---|------|-------|
-| 1 | Hardware configuration (pins, defines) | 258–492 |
-| 2 | OTA configuration | 493–527 |
-| 3 | Forward declarations | 528–832 |
-| 4 | Weight rounding | 833–852 |
-| 5 | Global objects (incl. `PN532Reader`, RF tuning) | 853–1514 |
-| 6 | Configuration variables | 1515–1934 |
-| 7 | Display / weigh rendering | 1935–2712 |
-| 8 | Cloud parsing | 2713–2727 |
-| 9 | WiFi setup + every touch/LVGL settings screen | 2728–7650 |
-| 10 | LittleFS | 7651–7950 |
-| 11 | Firebase authentication + Firestore | 7951–9633 |
-| 13 | WebSocket | 9634–9660 |
-| 14 | Cloud worker task (core 0) | 9661–9795 |
-| 15 | Unified WS frame builder | 9796–9920 |
-| 16 | Weight filter helpers | 9921–9935 |
-| 17 | Post-send state reset | 9936–9956 |
-| 18 | Shared weight push handler | 9957–10060 |
-| 19 | Web server (all HTTP routes) | 10061–11087 |
-| 20 | Cloud communication | 11088–11270 |
-| 21 | Weigh workflow state machine | 11271–11778 |
-| 22 | mDNS | 11779–11816 |
-| 23 | Scale (HX711 init, filtering, calibration) | 11817–11987 |
-| AUDIO | ES8311 codec beep (I2S slave, I2C 0x18) | 11988–12111 |
-| 24 | RFID (PN532 via `PN532Reader`, tag reading) | 12112–13050 |
-| 25 | OTA (firmware + filesystem update) | 13051–13730 |
-| LVGL | LVGL bridge + main weigh screen | 13731–14670 |
-| LIVE | Remote live view: the screen out, taps back in | 14671–15520 |
-| 26 | `setup()` + `loop()` | 15521–16686 |
+| 1 | Hardware configuration (pins, defines) | 319–551 |
+| 2 | OTA configuration | 552–586 |
+| 3 | Forward declarations | 587–895 |
+| 4 | Weight rounding | 896–915 |
+| 5 | Global objects (incl. `PN532Reader`, RF tuning) | 916–1686 |
+| 6 | Configuration variables | 1687–2122 |
+| 7 | Display / weigh rendering | 2123–2904 |
+| 8 | Cloud parsing | 2905–2919 |
+| 9 | WiFi setup + every touch/LVGL settings screen | 2920–7858 |
+| 10 | LittleFS | 7859–8158 |
+| 11 | Firebase authentication + Firestore | 8159–10730 |
+| 13 | WebSocket | 10731–10757 |
+| 14 | Cloud worker task (core 0) | 10758–10898 |
+| 15 | Unified WS frame builder | 10899–11023 |
+| 16 | Weight filter helpers | 11024–11039 |
+| 17 | Post-send state reset | 11040–11060 |
+| 18 | Shared weight push handler | 11061–11164 |
+| 19 | Web server (all HTTP routes) | 11165–12188 |
+| 20 | Cloud communication | 12189–12373 |
+| 21 | Weigh workflow state machine | 12374–12907 |
+| 22 | mDNS | 12908–12945 |
+| 23 | Scale (HX711 init, filtering, calibration) | 12946–13151 |
+| AUDIO | ES8311 codec beep (I2S slave, I2C 0x18) | 13152–13277 |
+| 24 | RFID (PN532 via `PN532Reader`, tag reading) | 13278–15233 |
+| 25 | OTA (firmware + filesystem update) | 15234–15910 |
+| LVGL | LVGL bridge + main weigh screen | 15911–16835 |
+| LIVE | Remote live view: the screen out, taps back in | 16836–17685 |
+| 26 | `setup()` + `loop()` | 17686–18707 |
 
 Two gaps and two oddities in that numbering, all deliberate:
 
@@ -73,65 +73,86 @@ Two gaps and two oddities in that numbering, all deliberate:
 
 | Function | Line | Section |
 |----------|------|---------|
-| `axpRead` | 621 | §3 |
-| `axpChargeState` | 746 | §3 |
-| `axpBatteryLevel` | 758 | §3 |
-| `pollBatteryState` | 685 | §3 |
-| `roundWeight` | 836 | §4 |
-| `applyPN532RfTuning` | 1177 | §5 |
-| `runScreensaver` | 1988 | §7 |
-| `displayWeightWithState` | 2421 | §7 |
-| `tsPollLoop` | 2925 | §9 |
-| `tsBtn` | 2962 | §9 |
-| `tsKeyboard` | 3315 | §9 |
-| `wifiTouchConfigure` | 3679 | §9 |
-| `tsNumericInput` | 3834 | §9 |
-| `runCalibrationWizard` | 4006 | §9 |
-| `runLanguageSettings` | 4508 | §9 |
-| `runHardwareTest` | 4939 | §9 |
-| `lvglAskYesNo` | 5229 | §9 |
-| `runOtaMenu` | 6649 | §9 |
-| `runSettingsMenu` | 7015 | §9 |
-| `setupWiFi` | 7588 | §9 |
-| `setupFileSystem` | 7765 | §10 |
-| `firebaseSignIn` | 7962 | §11 |
-| `fetchApiKeyFromFirestore` | 8048 | §11 |
-| `syncClockFromFirestore` | 8206 | §11 |
-| `readInventoryContainerWeight` | 8619 | §11 |
-| `pushLatestEventToFirestore` | 9320 | §11 |
-| `buildWsFrame` | 9803 | §15 |
-| `resetWeightFilters` | 9924 | §16 |
-| `resetAfterSuccessfulSend` | 9939 | §17 |
-| `handleWeightPushBody` | 9960 | §18 |
-| `setupWebServer` | 10065 | §19 |
-| `sendSingleUidToCloud` | 11091 | §20 |
-| `parseCloudSpoolMeta` | 11147 | §20 |
-| `pushWeightToCloud` | 11197 | §20 |
-| `fetchMetaFromApiByUid` | 11235 | §20 |
-| `handleWeighWorkflow` | 11324 | §21 |
-| `startMDNS` | 11782 | §22 |
-| `setupScale` | 11820 | §23 |
-| `isRapidChange` | 11851 | §23 |
-| `readWeight` | 11887 | §23 |
-| `playSoundTheme` | 12071 | §AUDIO |
-| `rfidSelectReader` | 12169 | §24 |
-| `normalizeRfidHwConfig` | 12223 | §24 |
-| `setupRFID` | 12233 | §24 |
-| `setupServo` | 12439 | §24 |
-| `processAutoTare` | 12453 | §24 |
-| `fetchMetaFromFirestore` | 12761 | §24 |
-| `readTigerTagMetadata` | 12855 | §24 |
-| `pollRFIDReader` | 12926 | §24 |
-| `recoverRFIDReaderIfNeeded` | 13009 | §24 |
-| `isDuplicateRecentUid` | 13029 | §24 |
-| `isUidLatched` | 13033 | §24 |
-| `finishRfidSession` | 13045 | §24 |
-| `otaApply` | 13238 | §25 |
-| `otaFetchLatest` | 13380 | §25 |
-| `lvglBuildMainScreen` | 13985 | §LVGL |
-| `lvglUpdateMainScreen` | 14413 | §LVGL |
-| `setup` | 15540 | §26 |
-| `loop` | 15711 | §26 |
+| `axpRead` | 684 | §3 |
+| `axpChargeState` | 809 | §3 |
+| `axpBatteryLevel` | 821 | §3 |
+| `pollBatteryState` | 748 | §3 |
+| `roundWeight` | 899 | §4 |
+| `applyPN532RfTuning` | 1236 | §5 |
+| `runScreensaver` | 2176 | §7 |
+| `displayWeightWithState` | 2609 | §7 |
+| `tsPollLoop` | 3117 | §9 |
+| `tsBtn` | 3154 | §9 |
+| `tsKeyboard` | 3507 | §9 |
+| `wifiTouchConfigure` | 3871 | §9 |
+| `tsNumericInput` | 4026 | §9 |
+| `runCalibrationWizard` | 4198 | §9 |
+| `runLanguageSettings` | 4707 | §9 |
+| `runHardwareTest` | 5138 | §9 |
+| `lvglAskYesNo` | 5428 | §9 |
+| `runOtaMenu` | 6857 | §9 |
+| `runSettingsMenu` | 7223 | §9 |
+| `setupWiFi` | 7796 | §9 |
+| `setupFileSystem` | 7973 | §10 |
+| `firebaseSignIn` | 8170 | §11 |
+| `fetchApiKeyFromFirestore` | 8256 | §11 |
+| `syncClockFromFirestore` | 8414 | §11 |
+| `readInventoryContainerWeight` | 8827 | §11 |
+| `inventoryEncode` | 9928 | §11 |
+| `inventoryPrepare` | 10137 | §11 |
+| `inventoryContainers` | 10383 | §11 |
+| `inventorySetContainer` | 10440 | §11 |
+| `inventoryBuildRelease` | 10228 | §11 |
+| `inventoryRelease` | 10353 | §11 |
+| `inventoryRun` | 10706 | §11 |
+| `bambuInventoryId` | 9863 | §11 |
+| `decodeBambuTag` | 9870 | §11 |
+| `inventoryBambuLookup` | 10490 | §11 |
+| `inventoryBambuCreate` | 10678 | §11 |
+| `inventoryBambuCatalog` | 10544 | §11 |
+| `inventoryBambuUpgrade` | 10596 | §11 |
+| `runBambuImport` | 14870 | §24 |
+| `pushLatestEventToFirestore` | 9531 | §11 |
+| `buildWsFrame` | 10906 | §15 |
+| `resetWeightFilters` | 11027 | §16 |
+| `resetAfterSuccessfulSend` | 11043 | §17 |
+| `handleWeightPushBody` | 11064 | §18 |
+| `setupWebServer` | 11169 | §19 |
+| `sendSingleUidToCloud` | 12192 | §20 |
+| `parseCloudSpoolMeta` | 12249 | §20 |
+| `pushWeightToCloud` | 12299 | §20 |
+| `fetchMetaFromApiByUid` | 12338 | §20 |
+| `handleWeighWorkflow` | 12427 | §21 |
+| `startMDNS` | 12911 | §22 |
+| `setupScale` | 12949 | §23 |
+| `isRapidChange` | 12982 | §23 |
+| `readWeight` | 13031 | §23 |
+| `playSoundTheme` | 13236 | §AUDIO |
+| `rfidSelectReader` | 13336 | §24 |
+| `normalizeRfidHwConfig` | 13390 | §24 |
+| `setupRFID` | 13400 | §24 |
+| `setupServo` | 13606 | §24 |
+| `processAutoTare` | Only idle, untagged raw samples within ±2 g may move zero, after 3 s with at most 1 g range; correction is capped at ±5 g from the explicit baseline. Negative offsets outside that window latch a warning and block weight uploads. Removal is independent of zero. Never restore an unbounded negative-drift or login-triggered tare. |
+| `fetchMetaFromFirestore` | 13972 | §24 |
+| `readTigerTagMetadata` | 14066 | §24 |
+| `pollRFIDReader` | 15021 | §24 |
+| `writeInventoryTags` | 14196 | §24 |
+| `blankLoadTick` | 14308 | §24 |
+| `inventoryPickSpool` | 14579 | §24 |
+| `selectSpoolContainer` | 14375 | §24 |
+| `runInventoryAssignment` | 14748 | §24 |
+| `releaseInventoryTags` | 14703 | §24 |
+| `recoverRFIDReaderIfNeeded` | 15189 | §24 |
+| `isDuplicateRecentUid` | 15209 | §24 |
+| `isUidLatched` | 15213 | §24 |
+| `prepareRfidRead` | 13808 | §24 |
+| `finishRfidSession` | 15225 | §24 |
+| `otaApply` | 15421 | §25 |
+| `otaFetchLatest` | 15563 | §25 |
+| `lvglBuildMainScreen` | 16178 | §LVGL |
+| `lvglUpdateMainScreen` | 16582 | §LVGL |
+| `setup` | 17705 | §26 |
+| `loop` | 17876 | §26 |
 
 ## Landmines — read the note before editing these
 
@@ -141,10 +162,10 @@ a debugging session at least once.
 | Function | What you need to know first |
 |----------|------------------------------|
 | `setupRFID` | RFID transport is a **build-time** choice, never runtime. Building the env that does not match the physical wiring yields firmware that finds no reader and says nothing about why. The bench-verified unit is HSU on a -3.5B board → `-e esp32s3_hsu_b`. The SPI-only `SPI.begin()` inside is guarded for exactly this reason: it used to claim GPIO47/48/41 before `Serial1`/`Serial2` could bind them, so the HSU build transmitted nothing at all. |
-| `handleWeighWorkflow` | The removal-detected reset block captures `gRecentlyRemovedUid1`/`2` and `gRemovalDetectedMs` from `lastUID`/`lastUID2` *just before* clearing them. That is what lets a delayed RFID echo of a tag that was just lifted off be told apart from a genuinely new tag — the fix for the phantom triple-beep on spool removal. Its `WF_IDLE` branch must also keep clearing `lastUID`/`lastUID2`/`lastUIDLeft`/`lastUIDRight` once weight drops below `MIN_WEIGHT_TO_SEND_G`, or the UI stays stuck on "remove material" with an empty scale. |
-| `isDuplicateRecentUid` / `isUidLatched` | The dedup window is 1.5 s and was deliberately never widened. The phantom-beep bug it once seemed related to is handled by the separate, narrower mechanism above, checked only at the `playSoundTheme()` call sites. |
+| `handleWeighWorkflow` | Its `WF_IDLE` branch must keep clearing `lastUID`/`lastUID2`/`lastUIDLeft`/`lastUIDRight` once weight drops below `MIN_WEIGHT_TO_SEND_G`, or the UI stays stuck on "remove material" with an empty scale. Read sounds have their own physical-load latch and must not be re-armed by workflow or RF resets. |
+| `isDuplicateRecentUid` / `isUidLatched` | The dedup window is 1.5 s and was deliberately never widened. `tagReadBeep()` runs before metadata/twin deduplication, requires a fresh loaded reading and remembers two physical UIDs. Only 700 ms of fresh empty-platform samples in `readWeight()` re-arms sound, preventing removal echoes without muting rapid replacements. |
 | `isRapidChange` | Computes a real rate of change in g/s, independent of how often `loop()` happens to call it. The old fixed 50–100 ms gate effectively never engaged the fast filter, so every weight change crawled through the slow one. |
-| `processAutoTare` | There is exactly **one** auto-tare handler: the negative-drift one (1 s sustained, plus idle/empty guard, plus 10 s cooldown). An earlier "immediate" ~250 ms handler was removed because a firm spool placement's mechanical undershoot could trigger it, taring the scale onto the item's own weight while it sat on the platform. Do not reintroduce a short-debounce variant. |
+| `processAutoTare` | Only idle, untagged raw samples within ±2 g may move zero, after 3 s with at most 1 g range; correction is capped at ±5 g from the explicit baseline. Negative offsets outside that window latch a warning and block weight uploads. Removal is independent of zero. Never restore an unbounded negative-drift or login-triggered tare. |
 | `readWeight` | If this ever reads 0 g or inverted "no matter what", check the **sign** of raw `scale.get_units()` before touching filters or auto-tare. A swapped load-cell wire produces exactly that symptom, because the downstream `if (weight < 0) weight = 0` clamp makes a hardware polarity fault look identical to a software bug. This has happened once already. |
 | `lvglAskYesNo` | Blocks on `lv_timer_handler()` until a button is pressed, so calling it from inside an LVGL event callback re-enters the handler and deadlocks — the first trap in `docs/FIRMWARE.md`. Both call sites are `loop()` and `runOtaMenu`, neither of which is a callback. It also sizes its card by measuring the wrapped body label, not by assuming a line count: the same sentence is one line in English and two in German. |
 | `readInventoryContainerWeight` | Silently returns 0 on any HTTP or parse failure, with no retry. Known gap, not a bug to be surprised by. |
@@ -153,12 +174,12 @@ a debugging session at least once.
 | `lcdResetByTCA9554` | Takes the bus because the expander is on `Wire1` at 0x20, not on `Wire`/GPIO21-22 where the vendor demo puts it — so for a long time this function reset nothing at all. It now runs for the -3.5 only: its ST7796 needs the pulse, and the -3.5B has been booting without one for months. Do not "fix" that asymmetry without a -3.5B on the bench. |
 | `tsRead` (board branch) | Touch differs by board: AXS5106L @0x3B on the -3.5B (14-byte response), FT6336 @0x38 on the -3.5, and AXS15231B @0x3B on the JC3248W535C (8-byte response). All use `Wire1`; Waveshare uses SDA=8/SCL=7, Guition SDA=4/SCL=8. Only the bus pins and protocol differ; the portrait→landscape mapping is shared and must stay shared, or the boards drift apart in a way only a physical unit can catch. |
 | `otaApply` | `firmware_url` must point at the plain `firmware.bin`. `Update.begin()`/`write()` only replace the app partition, so handing it a `firmware.factory.bin` corrupts the bootloader and partition table. |
-| `applyPN532RfTuning` | Sets TX drive and RX sensitivity together via `RFConfiguration` CfgItem 0x0A, through the library's public `sendCommandCheckAck()` — no library patch needed. The 5-level table exists because the two antennas sit ~75 mm apart facing each other and cross-talk; the levels span only the low-power end, which is the range that matters for that. Default level 3. |
+| `applyPN532RfTuning` | Sets TX drive and RX sensitivity together via `RFConfiguration` CfgItem 0x0A, through the library's public `sendCommandCheckAck()` — no library patch needed. Levels 0–4 cover reduced drive for the close-facing antennas; level 5 restores NXP's factory profile for weak coupling. Default level 3. |
 | `tsKeyboard` | The shift-key highlight uses an `LV_EVENT_DRAW_PART_BEGIN` callback on a specific button index, **not** `LV_STATE_CHECKED`. `LV_KEYBOARD_CTRL_BTN_FLAGS` bakes `LV_BTNMATRIX_CTRL_CHECKED` into every control key, so styling via that state lights up shift, 1# and backspace all at once, and lights them from creation regardless of actual state. |
 | `computeWeightAvailable` | The net weight is **not** clamped to `measure_gr`, and that is a decision, not an omission: a spool holding more than its label says is a real measurement. The clamp that used to be there was also a race — `measure_gr` is only read on the branch that fetches the inventory record inline, never on the branch that uses the value prefetched during `WF_SCANNING` — so the same spool at the same gross weight was sent as 524.8 g or 500.0 g depending on whether the network beat the settling time, and speeding the workflow up made the wrong one win more often. |
 | `updateStableWindow` | Runs in **both** `WF_SCANNING` and `WF_STABLE_WAIT`, and the settle window is deliberately not reset on the transition between them — that reset was making every weighing pay a fresh `STABLE_WINDOW_MS` it had already earned during the scan. It also requires `slopeBufFull` before calling the weight steady: `wfCurrentSlope` is 0.0 until the ring buffer fills (6 x 400 ms), and 0.0 otherwise means "perfectly steady", so without that test an unfilled buffer reads as stable at exactly the moment a spool is being placed. |
 | `/screen.bmp` handler | Serves a **snapshot**, not the live canvas. Serialising 450 KB takes far longer than a repaint, so reading the framebuffer as it is written hands out pictures torn across two different screens. The snapshot is one memcpy into **PSRAM** -- never internal DRAM, which is the pool the `liveEnsureBuffers` row below is about -- freed when the response is destroyed. Under rotation 3 the canvas is stored panel-side up, so a landscape pixel (x, y) lives at `(479 - x) * 320 + y`; see `Arduino_Canvas::writePixelPreclipped()`. And it shows what LVGL drew, not what the glass shows: a change to the flush path or below looks perfect here and can still be wrong on the device. |
-| `/api/tap` handler | Waits by returning `RESPONSE_TRY_AGAIN`, never by sleeping -- a sleep here blocks the async TCP task and every other request with it, which is the trap written up over `handleWeightPushBody()`. It answers once the press has been taken and the screen has stopped changing, so a caller can chain tap and `screen.bmp`. The timeout is 3.5 s because a swipe genuinely takes about two seconds: each of its twelve steps scrolls the list, which repaints the screen, which costs a full 307 KB push at about 175 ms a step. A real finger pays the same. |
+| `/api/tap` handler | Waits by returning `RESPONSE_TRY_AGAIN`, never by sleeping -- a sleep here blocks the async TCP task and every other request with it, which is the trap written up over `handleWeightPushBody()`. It answers once the press has been taken and the screen has stopped changing, so a caller can chain tap and `screen.bmp`. The 3.5 s timeout accommodates the original full-frame panels: each of twelve swipe steps could cost a 307 KB push at about 175 ms. Keep the generous timeout. Partial rectangle transfers produced right-edge corruption on JC3248 despite correct framebuffer pixels; retain the full-canvas flush. |
 | injected press in `tsRead` | A swipe is the press *walked* in twelve steps, one per input read, because LVGL decides drag-or-tap from the movement between consecutive reads -- a single jump from start to end scrolls nothing. The gesture releases on its last step rather than on the read after it, so it does not depend on a caller still polling. The 800 ms safety net catches a press nobody samples again, which a screen builder can cause; without it the next request is swallowed by the one before. It must keep going through `tsRead()` and not be injected into LVGL directly, so screen sleep consumes it exactly as it consumes a finger. |
 | `screen_page.h` / `live_page.h` | Separate headers, not raw strings in the .ino, and not by preference: the Arduino prototype generator scans raw string literals as if they were code, so `async function poll()` in the page script became a generated C++ prototype at the top of the file and nothing compiled. |
 | `liveCapture` | Reads the canvas **once** per band, into a scratch buffer, then hashes and encodes that copy. Hashing the canvas and encoding the canvas as two separate reads lets a repaint slip in between, and the viewer is then recorded as holding a band it never received — a permanent artifact that only a reconnect clears. It must also return early when there are no viewers: the working buffers are only allocated while someone is watching, and running it without them wrote to a null pointer and panicked core 0. |

@@ -7,12 +7,12 @@ short version of what follows.
 
 ## Shape of the code
 
-One Arduino C++ file, **about 16 500 lines**, divided into 26 numbered sections plus
+One Arduino C++ file, **about 17 500 lines**, divided into 26 numbered sections plus
 `§AUDIO` and `§LVGL`. The table of contents at the top of the file is generated
 by `bash scripts/update_toc.sh` from the `// §N — TITLE` banners, so it cannot
 silently disagree with the file.
 
-`i18n.h` holds every on-device string: **117 keys × 11 languages**
+`i18n.h` holds every on-device string: **158 keys × 11 languages**
 (EN/PT/FR/ES/DE/ZH/IT/PL). The web UI's translations are separate, under
 `data/www/locales/`.
 
@@ -21,6 +21,33 @@ option but a large, behaviour-risky change on hardware that cannot be
 regression-tested automatically — hence the navigation tooling instead.
 
 ## The weighing pipeline
+
+Supported blank generic NTAG213/215/216 tags are detected during
+normal scanning, even without a spool on the scale or an account connection.
+The detector checks a seven-byte NXP UID, the Type 2 Capability Container, and
+the initialized empty-NDEF header from [NXP's datasheet, section 8.5.6](https://www.nxp.com/docs/en/data-sheet/NTAG213_215_216.pdf).
+NTAG213's Lock Control TLV and the simpler NTAG215/216 header are supported.
+The empty NDEF record `03 04 D8 00 00 00 FE 00` observed after a phone erase is
+also recognized, with Capability Container versions 1.0 and 1.1.
+This recognizes an initialized empty tag; it cannot establish that a tag has
+never been used, or prove that it is writable. Read failures and TigerTag Init
+markers do not trigger the notice. Detection itself does not write tag memory.
+
+For a bench check, place a spool with two erased tags on the scale. With one
+blank tag the badge says it is waiting for two; scanning continues. Two distinct
+blank UIDs must both have been seen within 500 ms throughout a one-second
+settling window, and the spool must weigh at least 20 g. The picker opens once
+per physical load. Exit, declining a confirmation, reader dropouts and RF-cache
+expiry do not re-arm it. After exiting, the badge requests a lift; a loaded
+platform must become empty (within 5 g for 700 ms with fresh HX711 samples, independently of display filtering)
+before another placement can reopen it. A missing HX711 cannot count as removal.
+`[RFID] Blank NTAG21x` logs the detected UID and reader. Blank UIDs stay out of
+normal metadata and inventory weight uploads; Hardware Test still shows raw UIDs.
+A failed NTAG header read is unknown, never a written-tag result. A valid NTAG
+header must identify an empty format or one of the three supported TigerTag
+markers before it enters the corresponding workflow. Confirmed blanks evict
+old metadata from RAM/NVS and clear stale UID/display fields, so erasing a
+previously written tag cannot resurrect its cached brand.
 
 ```
 HX711 → readWeight() → median + EMA filter → handleWeighWorkflow() → cloud
@@ -33,10 +60,11 @@ WF_IDLE → WF_SCANNING → WF_STABLE_WAIT → WF_SENDING → WF_DONE → WF_IDL
 ```
 
 - **`readWeight()`** applies a median filter then an exponential moving average.
-  `isRapidChange()` picks between a fast and a fine EMA alpha based on a real
-  rate of change in g/s — deliberately independent of how often `loop()` happens
-  to call it. An earlier fixed 50–100 ms gate effectively never engaged the fast
-  path, so every weight change crawled through the slow filter.
+  Small fluctuations use a fine EMA alpha of 0.04; the fast path requires both
+  a rapid change in g/s and at least 5 g between the median and EMA. Confirmed
+  load steps still restart the filters at the latest sample. The 0.5 g display
+  hysteresis compares readings after the dead-zone offset, holding small changes
+  without applying that offset twice.
 - **`WF_STABLE_WAIT`** requires the reading to stay within `±STABLE_EPSILON_G` for
   `STABLE_WINDOW_MS`, with a 15 s ceiling after which the best candidate is sent
   anyway rather than hanging forever.
@@ -64,14 +92,32 @@ WF_IDLE → WF_SCANNING → WF_STABLE_WAIT → WF_SENDING → WF_DONE → WF_IDL
   524.8 g or 500.0 g depending on whether the prefetch beat the settling time.
   Making the workflow faster made the wrong value win more often.
 
-### Auto-tare
+### Automatic zero and drift
 
-There is exactly **one** auto-tare handler: negative drift, requiring 1 s
-sustained below zero, plus an idle/empty guard, plus a 10 s cooldown.
+`processAutoTare()` uses fresh HX711 samples, independently of display filtering.
+It corrects only an idle, untagged platform within ±2 g after at least three
+seconds and ten samples with a total range no greater than 1 g. Samples more
+than 300 ms old, gaps, ongoing inventory work and detected tags interrupt
+qualification. Corrections smaller than 0.5 g are ignored; corrections have a
+30-second cooldown and a cumulative ±5 g limit from the last explicit zero.
 
-An earlier "immediate" handler with a ~250 ms debounce was removed and must not
-come back. A firm spool placement's mechanical undershoot could trigger it,
-taring the scale onto the item's own weight *while the item was sitting on it*.
+Stable negative readings below -2 g, or idle readings between +2 g and the
+20 g scan threshold, require **Zero Scale**. Exceeding the cumulative limit
+also latches this warning. Weight uploads and new assignments are blocked
+until the user zeros the scale. A larger positive reading can be a real load
+and cannot safely be classified as an offset from weight alone.
+
+Startup restores the saved explicit baseline; an absent or invalid baseline
+requires an empty-platform Zero Scale. Firebase login never changes the zero.
+Manual zero averages ten fresh ADC readings, persists the baseline and resets
+the display filters. Drift corrections are not persisted. Every adjustment
+logs its reason, reading and old/new offset. A failed manual sample set leaves
+the offset unchanged and asks for zero again.
+
+Spool removal clears the session separately, including when a negative offset
+remains. Missing sensor samples cannot qualify removal. The prior unbounded
+negative-drift tare and login-triggered tare must not be restored: they could
+hide errors or zero a spool already on the platform.
 
 ### If the scale reads 0 g or inverted "no matter what"
 
@@ -80,6 +126,233 @@ auto-tare logic. A swapped load-cell wire produces exactly this symptom, because
 the downstream `if (weight < 0) weight = 0` clamp makes a hardware polarity fault
 look identical to a software bug. This has already happened once.
 
+### Unrecognized RFID tags
+
+A UID alone is not a TigerTag. Unrecognized tags remain grey on the home screen
+and are excluded from metadata and automatic weight uploads. In particular,
+four-byte MIFARE Classic UIDs must not bypass the NTAG header check. HSU reader
+logs report UID, ATQA and SAK on detection; these identify chip characteristics,
+not a filament brand. For four-byte Classic 1K candidates, a read-only probe
+authenticates sectors 0/1 and decodes blocks 1, 2, 4 and 5, with up to three attempts
+per placement. It checks the documented GF material identifier; this is format
+recognition, not verification of Bambu's RSA signature. The derivation and layout
+follow [Bambu-Research-Group](https://github.com/Bambu-Research-Group/RFID-Tag-Guide).
+Unassociated candidates cannot upload weights. Original Bambu tags remain
+unchanged throughout import and subsequent weighing.
+Weight updates require an existing inventory document rather than creating a
+weight-only record for an unknown UID.
+
+### Importing original Bambu tags
+
+On HSU readers, a first import requires two distinct native tags with matching
+decoded material, variant, color, nominal weight and diameter. The scale asks
+whether to add the spool, then asks for its container type. Exit cancels import;
+lift and replace to retry. Both tags are freshly authenticated before saving.
+
+Each native UID maps deterministically to `TigerData_Bambu_<uppercase UID>`.
+The two inventory documents have reciprocal twin links, so Studio groups them
+as one spool. Creation is atomic and requires both documents to be absent;
+reconciliation after a lost response preserves existing data. Later placements
+can recognize the saved pair from either tag. Normal weighing updates these
+records, while the scale's Erase control remains disabled for native Bambu tags.
+
+The conversion uses decoded material/color/capacity and Bambu's brand ID, with
+the selected container tare and measured remaining weight. A unique non-refill
+SKU match promotes it to TigerData+: the tag's variant, diameter and capacity
+select a product from `bambu_catalog.h`, and the public product API must confirm
+the exact SKU, product ID, brand, diameter, capacity and non-refill status before
+the catalog fields are saved. New imports receive the name, image, print
+settings, document links and complete `catalogProduct` metadata. Unknown or
+ambiguous SKUs remain TigerData; an API failure leaves the inventory unchanged.
+
+Existing generic Bambu pairs upgrade on their next read with an atomic masked
+update to both documents. Version preconditions and reconciliation preserve
+concurrent changes and recover lost responses. Weight, container, identities,
+tag links and unrelated account fields are excluded from the update. Pairs
+already carrying a product ID skip the catalog request and preserve edits.
+The conversion does not merge an existing manually entered inventory spool.
+Unknown material mappings and non-1.75 mm diameters are rejected. This is a
+scale-side TigerData conversion, not official native-tag support in Studio;
+external readers still see the original Bambu format.
+
+Regenerate the compact SKU index from Studio's public
+`assets/db/tigertag/id_catalog.json` using
+`python scripts/generate-bambu-catalog.py path/to/id_catalog.json`. The generated
+header records the source SHA256 and excludes duplicate SKUs and refills. It is
+part of the application image, so updating it needs no filesystem flash.
+
+### Assigning inventory to a blank tag pair
+
+Before opening the picker, both blank tags must remain freshly readable for one
+second. The home badge says "Waiting for 2 tags" until both are detected, then
+"Checking tag pair..." with a spinner during this check. Intermittent reads can
+restart the check even after both read beeps.
+
+The picker loads the signed-in account's inventory in pages, selecting active
+filament records (`id_type=142`) whose IDs start with `TigerData_` or legacy
+`CLOUD_` (case-insensitive, preserving the exact document ID for later reads).
+Physical-tag inventory records are excluded. A load or memory failure
+rejects the list instead of displaying a partial inventory. Cards show brand,
+material, color and remaining grams. All spools appear initially, neutrals first
+(white to black), then colors in hue order. Like Studio, HSL saturation below
+15% means neutral; the Clear aspect (21) or an explicit color name of Clear also
+belongs in this group, retaining its original swatch. This includes catalogue
+Clear colors marked Basic. Colored Translucent aspects remain subject to the HSL threshold.
+Touching either rail activates only that group; the upper
+rail navigates lightness, the lower rail hue. Manual scrolling updates the active
+marker to the leftmost card. Material opens an alphabetical list of available
+types, with ALL first to clear that material filter. Choosing a material or ALL
+resets both color rails and shows every matching spool. Exiting the material menu
+preserves the existing filters. The list wraps in both
+directions using three virtual copies, recentring after each gesture. Five reusable
+card objects bound LVGL memory use and only change their text when recycled.
+The full inventory list is fetched once on entry. "Preparing tags" before the
+write fetches only the selected full record and checks the two UID assignments;
+the later save updates the account and does not reload the list.
+HTTP response bodies are received through HTTPClient (including chunk decoding)
+into a bounded 1 MiB PSRAM buffer before JSON parsing. This avoids stream reads
+ending between TLS packets. Transient failures get three attempts with backoff;
+401 gets one token refresh. Other client errors and memory exhaustion stop
+immediately. Failed listing offers Retry without lifting; partial results are
+discarded before a new attempt.
+Exit is always available in the picker. Selecting a card enables Validate,
+which confirms the selection and starts tag preparation directly.
+Before either tag is changed, selection and header reads get up to six attempts
+per reader with RF field reselection. A different UID or incompatible header
+stops immediately. Logs distinguish failed selection from failed header reads.
+
+If the selected inventory spool has no `container_id`, the scale asks which empty
+spool it uses before preparing tags. The list comes from Studio's shared
+`spools_filament.json`, with the filament's brand first (MasterSpools first for
+refills) and any account `containerOverrides.containerWeight` corrections applied.
+The chosen `container_id` and `container_weight` are saved on both new tag records
+in the same assignment commit. Existing Firestore value types are replaced when
+setting these fields, including integer weights and explicit nulls. Pending
+assignments from older firmware repair duplicate container value types before
+retrying, retaining the original tag identities and source-version precondition.
+A failed save keeps the recovery record; server error details are logged. Erasing
+tags preserves these fields.
+
+A normal tagged-spool read also asks when the existing record has no container.
+The choice updates only those two fields on reciprocal twins in one conditional
+commit, then the current weighing uses the selected empty weight. Known types are
+preserved. Exit, removal or failure stops that weighing cycle from uploading gross
+weight as remaining filament; lift and replace to retry. Transient saves retry
+three times and reconcile lost replies. Once a recognised container is assigned,
+Studio can edit it from the spool details' Container card. Studio currently hides
+that card and its edit button for unknown containers.
+
+The panel retains its full-canvas flush: partial rectangle transfers produced
+right-edge corruption on the JC3248 bench, despite correct framebuffer pixels.
+Card recycling avoids unnecessary label allocation/layout during scrolling.
+Two fresh weight samples confirm a rapid step of at least 5 g before the median/EMA restart at the latest
+sample. A single outlier cannot trigger that reset; existing tare and workflow
+settling guards still apply. Above the weight, separate left/right tag outlines
+represent the physical readers: red X absent, grey unidentified/blank, blue
+recognized TigerTag. Cloud twin lookup never lights an unread antenna. The
+indicators retain their last read while scanning is locked; polling confirms
+absence when scanning resumes. Zeroing a loaded platform does not hide its tags.
+
+The home button reads "Zero" over "Scale" and retains the former Tare behavior
+(set/save the offset and cancel pending automatic tare). Erase tag shares that area and is disabled unless
+two distinct tags have been physically detected, and is also disabled when both
+are confirmed blank. One confirmation covers both tag erasure and inventory
+unlinking. The account must be reachable so a conditional inventory release can
+be prepared before either tag changes. Fresh pair preflight precedes erasure;
+missing/swapped/unsupported tags prevent writing. Erasure uses the same
+three-attempt writer and full read-back checks as
+assignment, clearing the 144-byte TigerTag filament record to empty NDEF. It does
+not erase the UID, capability/configuration/lock pages, additional user memory
+beyond that record. Once both tags verify blank, one atomic inventory update
+preserves the spool without tags and removes the old UID assignments. The
+prepared versions prevent concurrent overwrites. A verified first tag is not
+rewritten when retrying the second. Partial erasure retains the account
+assignments and reports the count. Successful erasure and unlinking return home
+without an OK dialog. If unlinking fails, the user can retry immediately without
+rewriting tags, or lift/replace later to use the existing blank-tag release flow.
+An uncertain response is reconciled against the exact preserved inventory data.
+Pending account
+assignment recovery blocks erasure, preventing loss of unsaved tag identities.
+
+Before listing spools, the cloud worker checks the presented UIDs for existing
+assignments and offers release if needed. This makes the previous spool available
+in the untagged list, including for reuse of the same tags on the same spool.
+After selection and confirmation, the cloud worker re-fetches the selected document and checks
+that its update time still matches the displayed list. It preserves all original
+Firestore fields, including unknown nested values, rack/product links, container,
+weight and history. It prepares a conditional commit that creates both UID
+records, cross-links their twins and deletes the chipless source atomically.
+An existing UID assignment produces a distinct registered-tag condition,
+rather than the changed-inventory-record error. The user can confirm releasing
+that assignment: the old inventory fields are first copied to `TigerData_`
+entries, with chip-version/index/twin/backup fields removed. Matching reciprocal
+twins with equal spool data become one untagged entry; differing records are
+both kept. Container, remaining weight, product links and unknown fields remain
+unchanged. References to tags outside the presented pair block automatic release.
+
+Both presented tags must freshly verify as blank before release. One conditional
+batch creates the preserved entries and deletes the old UID records at their
+captured update times. Cancelling this confirmation changes neither account nor
+tags. After a successful release, inventory is listed and the user chooses the spool
+to assign. Its document is revalidated before the normal write flow continues. A later write failure leaves the previous spool
+safely untagged in inventory. A lost release response is reconciled against the
+full saved fields, excluding the server-generated update time. Runtime request
+`/tag-release.json` is removed after the release attempt. Existing UID records
+are never silently overwritten, and a concurrently changed source cannot be deleted. The contract matches
+[Studio Manager's inventory promotion](https://github.com/TigerTag-Project/TigerTag-Studio-Manager/blob/main/renderer/inventory.js).
+
+The tag codec follows the
+[official SDK field mapping](https://github.com/TigerTag-Project/TigerTag-SDK-JS/blob/main/src/tag.js).
+It writes an unsigned TigerTag or TigerTag+ according to the product ID, copies
+material/color/print settings, and converts inventory remaining grams to the
+chip's unit (mg/g/kg). It rejects values outside the binary field ranges.
+The pair shares a real chip-epoch timestamp, and both cloud records use exactly
+that timestamp, with indices 1/2 and 2/2. Signature bytes remain zero; no
+manufacturer certification is created.
+
+Both original UIDs must still select as blank before either tag is altered.
+Only user pages 04-27 are writable. The body is verified before committing the
+format marker on page 04, then all 144 bytes are compared. Only a fully verified
+pair can trigger the account commit. Partial failures report the verified count,
+with up to three attempts per tag for missed reads or writes. Retries reselect
+the original UID and reuse the exact payload, timestamp and pair index. A
+verified first tag is not rewritten when the second is retried. Only the
+session's original blank marker or its own committed marker is accepted during
+resume; unexpected markers, different UIDs or lifting stop the operation. If
+all attempts fail, the inventory source stays intact; erase both tags before
+starting a new assignment.
+HSU also retries an individual page up to three times. Recovery cycles the RF
+field with 15 ms off/on settling, reselects the original UID and reads the aligned
+user-data block. If the requested bytes already match after a lost acknowledgement,
+no duplicate write is needed. A different UID aborts recovery. Page diagnostics
+include the command ACK, PN532 status and tag ACK, while final whole-record
+verification remains mandatory.
+Normal HSU selection also allows 15 ms after field-off and field-on; record writes
+leave 2 ms between successful body pages for marginally coupled spool tags.
+After a successful pair write and account save, the normal RFID/metadata/weigh
+workflow starts immediately on the still-loaded spool, without an OK dialog, so
+its new filament and container information appears without lifting. This
+clears stale UID and metadata state without taring. The blank-picker prompt
+remains latched until physical removal. Failed or cancelled assignments still
+inhibit normal weighing until the assignment load is lifted.
+
+Before writing, the exact request and chip payload are saved to LittleFS as
+`/tag-assignment-commit.json` and `/tag-assignment.json`. They are runtime files,
+not filesystem-image assets. A failed account save can be retried without NFC
+writes; Cancel retains it. After a restart or the next lift/place, recovery first
+reconciles an already-completed atomic commit, or verifies the original pair
+against the saved 144 bytes before retrying. Account changes cannot redirect the
+saved request to another account. A source-version conflict retains both the
+source and recovery record; erase both original tags and explicitly discard the
+pending assignment to select the refreshed inventory again. Do not upload a new
+filesystem image while a recovery record is pending.
+
+Run `python scripts/test-inventory.py` after a PlatformIO build to exercise the
+actual codec, migration construction, writer failure paths, color sorting and
+physical-removal latch with native fixtures. Hardware acceptance still requires
+placing one spool with two blank tags, selecting a real inventory record, confirming
+both writes, and checking the resulting twin records in Studio Manager.
+
 ## NFC
 
 `PN532Reader` (§5) wraps the Adafruit library behind a small
@@ -87,20 +360,37 @@ look identical to a software bug. This has already happened once.
 metadata code are identical across all three transports. Only the class's
 internals differ per `RFID_TRANSPORT_*`.
 
+HSU consumes complete UART response frames for UID and page reads, validating
+lengths, checksums, and response types. Adafruit's fixed-size UID read leaves two
+bytes after a seven-byte UID; late poll replies and unconsumed RF configuration
+replies can then be mistaken for memory-read responses. The HSU wrapper also
+waits for the RF retry to finish and consumes both RF configuration replies.
+Before selecting a tag, HSU switches the opposing field off and resets the
+selected field, then switches it off again during session cleanup. Pair checks
+allow three attempts for missing UID or memory replies; a different UID or
+successfully read contents that do not match fail immediately.
+`[RFID HSU] READ` and `[NTAG] pages03-06` logs expose the raw reply and decoded
+header without writing to the tag.
+
 Three things worth knowing:
 
 - **Transport is compile-time.** See [HARDWARE.md](HARDWARE.md). The single most
   common failure mode in this project's history is firmware built for the wrong
   transport, which detects nothing and reports nothing.
-- **RF power is a runtime setting**, 5 levels, default 3, adjustable from
+- **RF power is a runtime setting**, 6 levels (0–5), default 3, adjustable from
   Settings → Hardware and persisted in NVS. It exists because the two antennas
-  sit ~75 mm apart facing each other and cross-talk.
-- **Phantom beeps on removal** are handled by `gRecentlyRemovedUid1`/`2` plus
-  `gRemovalDetectedMs`, captured inside `handleWeighWorkflow()`'s removal-reset
-  block *just before* the UIDs are cleared. That is what distinguishes a delayed
-  RFID echo of a tag that was just lifted off from a genuinely new tag. The
-  separate 1.5 s dedup window (`isDuplicateRecentUid`) was deliberately never
-  widened.
+  sit ~75 mm apart facing each other and cross-talk. Levels 0–4 retain the
+  reduced-drive range; level 5 is the factory 106 kbps Type A analog profile from
+  [NXP's PN532 manual, table 19](https://www.nxp.com/docs/en/user-guide/141520.pdf),
+  available for more distant or weakly coupled spool tags.
+- **Read feedback** is one short beep for each distinct physical tag in a
+  placement, including blank tags. Mute and volume still apply; read feedback
+  uses a single pulse regardless of the theme preview setting. It occurs before
+  metadata/cloud-twin deduplication. RF dropouts and post-write rereading do not
+  repeat it. `readWeight()` re-arms the two-UID sound latch after 700 ms of fresh
+  empty-platform samples; `tagReadBeep()` requires a fresh loaded reading, so
+  removal echoes and stale sensor values stay quiet. The separate 1.5 s UID
+  dedup window (`isDuplicateRecentUid`) is unchanged.
 
 ## <a id="lvgl-v8-traps"></a>LVGL v8 traps
 

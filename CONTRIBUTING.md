@@ -14,7 +14,7 @@ Contributions are genuinely welcome, and a few areas would help a lot right now:
 
 Two documents will save you the most time:
 
-- **[CODEMAP.md](CODEMAP.md)** — the firmware is one ~16 500-line file. This maps
+- **[CODEMAP.md](CODEMAP.md)** — the firmware is one ~18 500-line file. This maps
   every section and function so you can go straight to the part you need. Its
   **Landmines** table lists functions with non-obvious constraints; read the row
   for anything you're about to touch.
@@ -62,9 +62,17 @@ bash scripts/check-i18n.sh      # after touching i18n.h
 bash scripts/check-codemap.sh   # after touching the .ino
 bash scripts/update_toc.sh      # after adding/moving a "// §N — " banner
 pio run -e esp32s3_hsu_b        # must compile
+python3 scripts/test-inventory.py
+python3 scripts/test-picker.py
+python3 scripts/test-zero.py
 ```
 
-CI runs all of these on every push, plus a build of all five envs. Running them
+The native tests require Python 3.10+ and a host gcc/g++ toolchain (set `CC` and
+`CXX` if needed). Build once first so PlatformIO installs ArduinoJson and LVGL.
+They use synthetic tag identities and mock account responses; no hardware or
+account credentials are needed. The picker tests use real LVGL on the host.
+
+CI runs these tests for firmware changes, plus all seven build environments. Running them
 locally just gets you the answer faster.
 
 If `check-codemap.sh` reports drift, fix the line numbers in `CODEMAP.md` — that
@@ -73,10 +81,10 @@ is the intended response, not suppressing the check.
 ## Adding a UI string
 
 1. Add the key to the enum in `TigerTagSplashESP32/i18n.h`, before `I18N_COUNT`.
-2. Add one entry to **all 8 language blocks**, in the same order as the enum.
+2. Add one entry to **all 11 language blocks**, in the same order as the enum.
 3. `bash scripts/check-i18n.sh` must exit 0.
 
-If you can't translate into all 8, use the English string as a placeholder and say
+If you can't translate into all 11, use the English string as a placeholder and say
 so in the pull request — a missing entry breaks the build, a placeholder doesn't.
 
 Web UI strings are separate: `data/www/locales/*.json`.

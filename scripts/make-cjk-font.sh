@@ -85,6 +85,16 @@ for SZ in 14 16 20; do
       --font "$FAB" -r "$FAB_RANGE" \
       --size "$SZ" --bpp 4 --format lvgl --no-compress \
       --lv-include lvgl.h -o "$OUT"
+  # lv_font_conv embeds its command line, including the user's temporary path.
+  "$PY" - "$OUT" <<'PY'
+from pathlib import Path
+import re
+import sys
+p = Path(sys.argv[1])
+text = p.read_text(encoding='utf-8')
+text = re.sub(r'--font .*?([^/\\ ]+\.(?:otf|ttf))(?= )', r'--font \1', text, count=3)
+p.write_text(text, encoding='utf-8', newline='\n')
+PY
   echo "    $OUT"
 done
 

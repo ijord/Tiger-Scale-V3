@@ -1,0 +1,73 @@
+{
+  "id": 3608667697,
+  "product_type": "Filament",
+  "title": "Bambu Lab - PLA Basic - Jade White - 1.75 mm - 1000 g",
+  "name": "Jade White",
+  "brand": "Bambu Lab",
+  "series": "PLA Basic",
+  "color": "#FFFFFF",
+  "sku": "A00-W1-1.75-1000-spl",
+  "barcode": "6975337031024",
+  "brand_logo": null,
+  "brand_url": "https://example.test/catalog/fixture",
+  "images": {
+    "main_src": "https://example.test/catalog/fixture"
+  },
+  "links": {
+    "tds": "https://example.test/catalog/fixture",
+    "msds": "https://example.test/catalog/fixture",
+    "rohs": "https://example.test/catalog/fixture",
+    "reach": null,
+    "tips": null,
+    "food": null,
+    "youtube": null,
+    "en71": "https://example.test/catalog/fixture"
+  },
+  "active": true,
+  "filament": {
+    "material": "PLA",
+    "aspect1": "Basic",
+    "aspect2": null,
+    "color": "#FFFFFF",
+    "color_info": {
+      "type": "mono",
+      "colors": [
+        "#FFFFFF"
+      ],
+      "ral": null
+    },
+    "diameter": "1.75",
+    "shore": "",
+    "grams": 1000,
+    "measure_value": 1000,
+    "measure_unit": "g",
+    "refill": false,
+    "recycled": false,
+    "filled": false,
+    "fill_percent": null,
+    "transmission_dist": null
+  },
+  "nozzle": {
+    "temp_min": 190,
+    "temp_max": 230
+  },
+  "dryer": {
+    "temp": 50,
+    "time": 8
+  },
+  "bed": {
+    "temp_min": 35,
+    "temp_max": 45
+  },
+  "fan": {
+    "speed_min": 100,
+    "speed_max": 100
+  },
+  "metadata": {
+    "bambuLabel": "Bambu PLA Basic",
+    "bambuID": "GFA00",
+    "crealityLabel": "Generic PLA",
+    "crealityID": "00001",
+    "crealityPressureAdvance": ""
+  }
+}

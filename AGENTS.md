@@ -5,7 +5,7 @@ Tool-agnostic conventions for this repository. If you are Claude Code, read
 
 ## The one rule that matters most
 
-**The firmware is a single ~16 500-line file. Never read it whole.**
+**The firmware is a single ~18 500-line file. Never read it whole.**
 
 ```
 1. Open CODEMAP.md, find the section or function by name
@@ -24,7 +24,7 @@ for it.
 | Path | What it is |
 |------|-----------|
 | `TigerTagSplashESP32/TigerTagSplashESP32.ino` | All firmware. 26 numbered sections plus §AUDIO and §LVGL. |
-| `TigerTagSplashESP32/i18n.h` | Every on-device UI string: 117 keys × 11 languages |
+| `TigerTagSplashESP32/i18n.h` | Every on-device UI string: 158 keys × 11 languages |
 | `TigerTagSplashESP32/logo_*.h`, `icon_bolt.h` | Pre-rasterised RGB565 bitmaps |
 | `include/lv_conf.h` | LVGL v8.4 configuration (found via `-I include`) |
 | `data/www/` | Web UI served from LittleFS |
@@ -90,7 +90,7 @@ property: an empty input set is an error, not a pass.
 | Arduino IDE support | Not possible — LVGL's config needs `-I include`. PlatformIO only. |
 | `Wire` / GPIO21+22 | Broken on this board. Use `Wire1` (GPIO8/7). |
 | Motorised spool rotation | No motor on this hardware. `setupServo()` is intentionally a no-op. |
-| Short-debounce auto-tare | Removed on purpose — it tared onto the spool's own weight. Only the 1 s negative-drift handler remains. |
+| Short-debounce auto-tare | Removed on purpose — it tared onto the spool's own weight. Only bounded, stable raw-sample drift correction remains; large offsets require explicit Zero Scale. |
 | The 1.5 s RFID dedup window | Deliberately never widened. |
 
 ## Hardware you cannot test from here

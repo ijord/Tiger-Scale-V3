@@ -54,6 +54,11 @@ place a spool carrying a TigerTag tag on the platform and it identifies the spoo
 weighs it, subtracts the empty spool's weight and reports how much filament is
 left. MIT licensed, built with PlatformIO.
 
+The changes in [WORKLOG.md](WORKLOG.md) are available in source builds. The
+installer linked above serves published upstream releases and may not include
+these changes yet. Build with PlatformIO for your board; see
+[installation](docs/INSTALLATION.md) and [JC3248W535 support](docs/JC3248W535.md).
+
 > [!WARNING]
 > **TigerScale V3 is different from [TigerPOD](https://github.com/TigerTag-Project/TigerPOD).** They don't offer the same features.
 
@@ -102,6 +107,16 @@ that one.
 ## Features
 
 - **Dual NFC readers** so twin-tagged spools are identified from either side
+- **Assign blank tag pairs** from untagged inventory on the touchscreen, with
+  material filtering, hue and black/white navigation, and a wrapping card list
+- **Erase and reuse tag pairs** with verification and inventory unlinking;
+  completed writes return directly to the normal spool display
+- **Read original Bambu tags** on HSU readers and import a matching pair without
+  modifying the tags. Unique non-refill catalog matches become TigerData+;
+  other supported products remain TigerData
+- **Bounded automatic zero** corrects small, stable drift. Startup restores the
+  saved baseline; first use or a large negative offset requires **Zero Scale**
+  with the platform empty
 - **Precision weighing** through an HX711 and a load cell, with median + adaptive
   EMA filtering tuned for a kitchen-scale feel
 - **Full touchscreen UI** — WiFi picker with on-screen keyboard, calibration

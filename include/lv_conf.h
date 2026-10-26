@@ -209,7 +209,8 @@
 #define LV_ATTRIBUTE_FAST_MEM
 #define LV_ATTRIBUTE_DMA
 #define LV_EXPORT_CONST_INT(int_value) struct _silence_gcc_warning
-#define LV_USE_LARGE_COORD 0
+// Inventory rows can span more than the 8191 px small-coordinate limit.
+#define LV_USE_LARGE_COORD 1
 
 /*==================
  *   FONT USAGE

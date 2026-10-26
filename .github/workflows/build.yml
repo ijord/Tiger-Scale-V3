@@ -81,7 +81,7 @@ jobs:
 
           # Anything that can change a compiled artifact. `data/` is in here
           # because it becomes the LittleFS image the release publishes.
-          if echo "$CHANGED" | grep -qE '^(TigerTagSplashESP32/|include/|lib/|data/|platformio\.ini|partitions\.csv|\.github/workflows/build\.yml)'; then
+          if echo "$CHANGED" | grep -qE '^(TigerTagSplashESP32/|include/|lib/|data/|scripts/test-|scripts/fixtures/|platformio\.ini|partitions\.csv|\.github/workflows/build\.yml)'; then
             echo "firmware=true" >> "$GITHUB_OUTPUT"
             echo "-> firmware touched, building all environments"
           else
@@ -127,6 +127,13 @@ jobs:
 
       - name: Build
         run: pio run -e ${{ matrix.env }}
+
+      - name: Native inventory, picker and zero regression tests
+        if: matrix.env == 'esp32s3_hsu_b'
+        run: |
+          python3 scripts/test-inventory.py
+          python3 scripts/test-picker.py
+          python3 scripts/test-zero.py
 
       - name: Report firmware size
         run: |

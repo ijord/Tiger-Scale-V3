@@ -153,6 +153,12 @@ if [ "$QUICK" -eq 0 ]; then
       pio run -e "$e" 2>&1 | grep -E 'error:' | head -5 | sed 's/^/    /'
     fi
   done
+  step "Native inventory, picker and zero regression tests"
+  for suite in inventory picker zero; do
+    if ! "$PY" "scripts/test-$suite.py"; then
+      fail "native $suite tests"
+    fi
+  done
 fi
 
 echo

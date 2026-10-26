@@ -6,6 +6,10 @@
 *logo_*.h   -diff linguist-generated
 icon_bolt.h -diff linguist-generated
 
+# Generated subsets and catalog data stay diffable but collapse in PR review.
+TigerTagSplashESP32/font_cjk_*.c linguist-generated
+TigerTagSplashESP32/bambu_catalog.h linguist-generated
+
 # Binary assets
 *.png binary
 *.ico binary
