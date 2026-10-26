@@ -67,7 +67,8 @@ size_t heap_caps_get_free_size(int){return 128000;}
 size_t heap_caps_get_largest_free_block(int){return 128000;}
 std::vector<std::string> pages,requests;std::vector<int> pageCodes;int pageCode=200;
 std::vector<bool> authenticatedGets;
-int inventoryGet(const String& url,InventoryJson& doc,bool authenticated=true){doc.clear();requests.push_back(url);authenticatedGets.push_back(authenticated);if(requests.size()>pages.size())return 400;int code=pageCodes.size()>=requests.size()?pageCodes[requests.size()-1]:pageCode;if(code!=200)return code;return deserializeJson(doc,pages[requests.size()-1],DeserializationOption::NestingLimit(96))?-2:200;}
+int activeTlsClients=0;bool requireSingleTls=false;
+int inventoryGet(const String& url,InventoryJson& doc,bool authenticated=true){doc.clear();requests.push_back(url);authenticatedGets.push_back(authenticated);if(requireSingleTls&&activeTlsClients)return -1;if(requests.size()>pages.size())return 400;int code=pageCodes.size()>=requests.size()?pageCodes[requests.size()-1]:pageCode;if(code!=200)return code;return deserializeJson(doc,pages[requests.size()-1],DeserializationOption::NestingLimit(96))?-2:200;}
 uint32_t esp_random(){static uint32_t n=1000000000;return n++;}
 uint32_t nowMs=1;uint32_t millis(){return nowMs;}
 void netLog(const String&){} void lv_timer_handler(){} void blankFlowTick(){} void delay(unsigned long){}
@@ -81,9 +82,9 @@ struct PN532Reader {
  uint8_t mem[256];String identity;bool present=true,readable=true,fieldOn=true,fieldOK=true;int fieldCalls=0;int selections=0,swapAt=0,missAt=-1,noUidAttempts=0,readFailures=0;
  bool configureRfField(bool on){fieldCalls++;if(!fieldOK)return false;fieldOn=on;return true;}
  int failPage=-1,failures=-1,writeCalls=0,removeAt=-1,failReadOnPage=-1,failReadCount=1;bool changeMarkerOnFailure=false,lostAck=false,badBody=false,badFinal=false,protectedWrite=false;
- int pageCount=0;uint8_t pages[128]={};
+ int pageCount=0,failReadPage=-1;uint8_t pages[128]={};
  PN532Reader(){memset(mem,0xA5,sizeof(mem));const uint8_t hdr[]={0xE1,0x11,0x3E,0,3,4,0xD8,0,0,0,0xFE,0,0,0,0,0};memcpy(mem+12,hdr,16);}
- bool readPages16(uint8_t page,uint8_t* out){if(readFailures>0){readFailures--;return false;}if(!readable)return false;memcpy(out,classicAuth?classicMem[page]:mem+page*4,16);if((badBody&&pageCount>0)||(badFinal&&mem[16]!=3))out[5]^=1;return true;}
+ bool readPages16(uint8_t page,uint8_t* out){if(readFailures>0){readFailures--;return false;}if(!readable||page==failReadPage)return false;memcpy(out,classicAuth?classicMem[page]:mem+page*4,16);if((badBody&&pageCount>0)||(badFinal&&mem[16]!=3))out[5]^=1;return true;}
  bool writePage(uint8_t page,const uint8_t* data){writeCalls++;if(page<4||page>0x27){protectedWrite=true;return false;}bool fail=page==failPage&&(failures<0||failures-->0);if(fail&&changeMarkerOnFailure)mem[16]=0x77;if(fail&&!lostAck)return false;pages[pageCount++]=page;memcpy(mem+page*4,data,4);if(page==failReadOnPage){readFailures=failReadCount;failReadOnPage=-1;}if(writeCalls==removeAt)gBlankFlowRemoved=true;return !fail;}
 };
 std::map<String,int> gMetaCache,nvsCache;
@@ -123,7 +124,7 @@ public:
 #define MALLOC_CAP_8BIT 4
 void* heap_caps_realloc(void* p,size_t n,int){return realloc(p,n);}
 void heap_caps_free(void* p){free(p);}
-struct WiFiClientSecure{void setInsecure(){}};
+struct WiFiClientSecure{WiFiClientSecure(){activeTlsClients++;}~WiFiClientSecure(){activeTlsClients--;}void setInsecure(){}};
 struct HttpReply{int code;std::string body;int failure=0;HttpReply(int c,std::string b,int f=0):code(c),body(b),failure(f){}};
 std::vector<HttpReply> httpReplies;int httpCalls=0,httpEnds=0,refreshes=0;
 std::vector<int> postReplies;std::vector<String> postedBodies;int authHeaders=0;
@@ -178,7 +179,20 @@ int main(){int checks=0;
  number(f,"TD",1.5);number(f,"color_r2",12);number(f,"color_g3",77);CHECK(inventoryEncode(f,1,data));CHECK(get(data,44,2)==15&&data[36]==12&&data[41]==77);
  number(f,"id_product",0);CHECK(inventoryEncode(f,1,data));CHECK(get(data,0,4)==1542820452UL&&get(data,4,4)==0xFFFFFFFFUL);
  f.remove("id_product");CHECK(inventoryEncode(f,1,data));CHECK(get(data,0,4)==1542820452UL);
- f["message"]["stringValue"]=std::string(27,'x')+"\xE7\xBA\xA2";CHECK(inventoryEncode(f,1,data));CHECK(data[74]=='x'&&data[75]==0);
+ f["message"]["stringValue"]=std::string(27,'x')+"\xE7\xBA\xA2";CHECK(inventoryEncode(f,1,data));CHECK(data[74]=='x'&&data[75]==0xE7);
+ // Golden bytes from the pinned official JS/Python serializers and protocol guide.
+ InventoryJson encodingFixtures(65536),encodingFields(4096);
+ CHECK(!deserializeJson(encodingFixtures,TAG_ENCODING_FIXTURE));
+ for(JsonObjectConst sample:encodingFixtures["cases"].as<JsonArrayConst>()){
+  encodingFields.clear();auto fields=encodingFields.to<JsonObject>();
+  for(JsonPairConst item:sample["fields"].as<JsonObjectConst>()){
+   if(item.value().is<const char*>())fields[item.key()]["stringValue"]=item.value();
+   else fields[item.key()]["doubleValue"]=item.value();
+  }
+  CHECK(inventoryEncode(fields,sample["stamp"],data));data[39]=sample["tagInfo"];
+  String expected=sample["expectedHex"].as<String>();CHECK(expected.length()==160);
+  for(int i=0;i<80;i++){unsigned value;sscanf(expected.c_str()+2*i,"%2x",&value);CHECK(data[i]==value);}
+ }
  CHECK(inventoryChipless("TigerData_123",f));CHECK(inventoryChipless("CLOUD_123",f));CHECK(!inventoryChipless("04112233445566",f));
  CHECK(inventoryChipless("TIGERDATA_9000000031",f));CHECK(inventoryChipless("tigerdata_123",f));CHECK(inventoryChipless("cloud_123",f));
  f["deleted"]["booleanValue"]=true;CHECK(!inventoryChipless("TigerData_1",f));f.remove("deleted");number(f,"id_type",1);CHECK(!inventoryChipless("CLOUD_1",f));number(f,"id_type",142);
@@ -194,8 +208,12 @@ int main(){int checks=0;
  InventorySpool pale;pale.rgb=0xFFEEEE;inventoryColor(pale);CHECK(pale.saturation>.9f); // HSL, not HSV
  // Actual writer: UID preflight, marker-last, full verification and pair failures.
  resetReaders();String uids[]={rfid1.identity,rfid2.identity};CHECK(writeInventoryTags(original,uids)==2);
- original[39]=0x12;CHECK(memcmp(rfid1.mem+16,original,144)==0);original[39]=0x22;CHECK(memcmp(rfid2.mem+16,original,144)==0);
- for(auto r:{&rfid1,&rfid2}){CHECK(r->pageCount==36);CHECK(r->pages[0]==5&&r->pages[35]==4);CHECK(!r->protectedWrite);CHECK(r->mem[0]==0xA5&&r->mem[11]==0xA5&&r->mem[12]==0xE1&&r->mem[160]==0xA5);}
+ original[39]=0x12;CHECK(memcmp(rfid1.mem+16,original,80)==0);original[39]=0x22;CHECK(memcmp(rfid2.mem+16,original,80)==0);
+ for(auto r:{&rfid1,&rfid2}){CHECK(r->pageCount==20);CHECK(r->pages[0]==5&&r->pages[19]==4);CHECK(!r->protectedWrite);CHECK(r->mem[0]==0xA5&&r->mem[11]==0xA5&&r->mem[12]==0xE1&&r->mem[160]==0xA5);}
+ for(auto r:{&rfid1,&rfid2}){for(int i=96;i<160;i++)CHECK(r->mem[i]==0xA5);for(int i=0;i<r->pageCount;i++)CHECK(r->pages[i]<=0x17);}
+ // Normal writes must never touch signature pages, even if they reject writes.
+ resetReaders();rfid1.failPage=rfid2.failPage=0x18;CHECK(writeInventoryTags(original,uids)==2);
+ for(auto r:{&rfid1,&rfid2})for(int i=96;i<160;i++)CHECK(r->mem[i]==0xA5);
  resetReaders();String duplicate[]={uids[0],uids[0]};CHECK(writeInventoryTags(original,duplicate)==0&&rfid1.pageCount==0);
  resetReaders();String missing[]={uids[0],""};CHECK(writeInventoryTags(original,missing)==0&&rfid1.pageCount==0);
  resetReaders();rfid2.present=false;CHECK(writeInventoryTags(original,uids)==0&&rfid1.pageCount==0);
@@ -207,11 +225,11 @@ int main(){int checks=0;
  resetReaders();rfid1.badFinal=true;CHECK(writeInventoryTags(original,uids)==0&&rfid1.mem[16]==0xBC&&rfid2.pageCount==0);
  resetReaders();rfid2.failPage=8;CHECK(writeInventoryTags(original,uids)==1&&rfid1.mem[16]==0xBC&&rfid2.mem[16]==3);
  // Transient page failures resume partial contents only on the original UID.
- resetReaders();rfid1.failPage=8;rfid1.failures=1;CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==39&&rfid2.pageCount==36);
- resetReaders();rfid2.failPage=8;rfid2.failures=2;CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==36&&rfid2.pageCount==42);
- original[39]=0x12;CHECK(memcmp(rfid1.mem+16,original,144)==0);original[39]=0x22;CHECK(memcmp(rfid2.mem+16,original,144)==0);
+ resetReaders();rfid1.failPage=8;rfid1.failures=1;CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==23&&rfid2.pageCount==20);
+ resetReaders();rfid2.failPage=8;rfid2.failures=2;CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==20&&rfid2.pageCount==26);
+ original[39]=0x12;CHECK(memcmp(rfid1.mem+16,original,80)==0);original[39]=0x22;CHECK(memcmp(rfid2.mem+16,original,80)==0);
  // A marker may have been programmed even though its ACK was lost.
- resetReaders();rfid1.failPage=4;rfid1.failures=1;rfid1.lostAck=true;CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==72&&rfid2.pageCount==36);
+ resetReaders();rfid1.failPage=4;rfid1.failures=1;rfid1.lostAck=true;CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==40&&rfid2.pageCount==20);
  resetReaders();rfid1.failPage=8;CHECK(writeInventoryTags(original,uids)==0);CHECK(rfid1.writeCalls==12&&rfid2.writeCalls==0);
  resetReaders();rfid1.noUidAttempts=2;CHECK(writeInventoryTags(original,uids)==2);
  resetReaders();rfid2.readFailures=1;CHECK(writeInventoryTags(original,uids)==2);
@@ -219,27 +237,27 @@ int main(){int checks=0;
  resetReaders();rfid2.readFailures=4;CHECK(writeInventoryTags(original,uids)==2);
  resetReaders();rfid1.failPage=8;rfid1.failures=1;rfid1.swapAt=3;CHECK(writeInventoryTags(original,uids)==0);CHECK(rfid1.pageCount==3&&rfid2.pageCount==0);
  resetReaders();rfid1.failPage=8;rfid1.failures=1;rfid1.missAt=3;CHECK(writeInventoryTags(original,uids)==2);
- resetReaders();rfid1.failReadOnPage=0x27;CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==36&&rfid2.pageCount==36);
+ resetReaders();rfid1.failReadOnPage=0x17;CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==20&&rfid2.pageCount==20);
  resetReaders();rfid1.failPage=8;rfid1.failures=1;rfid1.changeMarkerOnFailure=true;CHECK(writeInventoryTags(original,uids)==0);CHECK(rfid1.writeCalls==4&&rfid2.writeCalls==0);
  resetReaders();rfid1.removeAt=2;CHECK(writeInventoryTags(original,uids)==0);CHECK(rfid1.writeCalls==2&&rfid2.writeCalls==0);gBlankFlowRemoved=false;
  // Verification read retries do not rewrite a successfully programmed body or marker.
- for(int failurePage:{0x27,0x04}) for(int count:{1,2}) {
+ for(int failurePage:{0x17,0x04}) for(int count:{1,2}) {
   resetReaders();rfid1.failReadOnPage=failurePage;rfid1.failReadCount=count;
-  CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==36&&rfid2.pageCount==36);
+  CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==20&&rfid2.pageCount==20);
  }
  // Exhaustion is bounded, then the existing whole-tag retry can recover.
- resetReaders();rfid1.failReadOnPage=0x27;rfid1.failReadCount=3;
- CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==71);
+ resetReaders();rfid1.failReadOnPage=0x17;rfid1.failReadCount=3;
+ CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==39);
  // Re-selection must not continue verification or write the marker on a different UID.
- resetReaders();rfid1.failReadOnPage=0x27;rfid1.swapAt=3;
- CHECK(writeInventoryTags(original,uids)==0);CHECK(rfid1.pageCount==35&&rfid1.mem[16]==3&&rfid2.pageCount==0);
+ resetReaders();rfid1.failReadOnPage=0x17;rfid1.swapAt=3;
+ CHECK(writeInventoryTags(original,uids)==0);CHECK(rfid1.pageCount==19&&rfid1.mem[16]==3&&rfid2.pageCount==0);
  resetReaders();rfid1.failReadOnPage=4;rfid1.swapAt=4;
- CHECK(writeInventoryTags(original,uids)==0);CHECK(rfid1.pageCount==36&&rfid2.pageCount==0);
+ CHECK(writeInventoryTags(original,uids)==0);CHECK(rfid1.pageCount==20&&rfid2.pageCount==0);
  // A missed recovery selection may be retried, retaining the same UID guard.
- resetReaders();rfid1.failReadOnPage=0x27;rfid1.missAt=3;
- CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==36);
+ resetReaders();rfid1.failReadOnPage=0x17;rfid1.missAt=3;
+ CHECK(writeInventoryTags(original,uids)==2);CHECK(rfid1.pageCount==20);
  // Erase shares verification recovery and must still verify every byte on both tags.
- uint8_t erasedPayload[144]={3,0,0xFE,0};
+ uint8_t erasedPayload[144]={};
  resetReaders();rfid1.failReadOnPage=0x27;rfid2.failReadOnPage=4;
  CHECK(writeInventoryTags(erasedPayload,uids,true)==2);
  CHECK(rfid1.pageCount==36&&rfid2.pageCount==36);
@@ -249,7 +267,7 @@ int main(){int checks=0;
  CHECK(writeInventoryTags(original,uids)==2);CHECK(repositionDirections.size()==1&&repositionDirections[0]=="move-right");
  resetReaders();rfid2.failPage=8;repositionAccepts=repositionMode=1;
  CHECK(writeInventoryTags(original,uids)==2);CHECK(repositionDirections.size()==1&&repositionDirections[0]=="move-left");
- CHECK(rfid1.pageCount==36&&rfid2.pageCount==45);
+ CHECK(rfid1.pageCount==20&&rfid2.pageCount==29);
  resetReaders();rfid1.failPage=rfid2.failPage=8;repositionAccepts=2;repositionMode=1;
  CHECK(writeInventoryTags(erasedPayload,uids,true)==2);
  CHECK(repositionDirections.size()==2&&repositionDirections[0]=="move-right"&&repositionDirections[1]=="move-left");
@@ -257,7 +275,7 @@ int main(){int checks=0;
  CHECK(!memcmp(rfid1.mem+16,erasedPayload,144)&&!memcmp(rfid2.mem+16,erasedPayload,144));
  // Cancel retains the completed tag; changed identities and removal never resume writes.
  resetReaders();rfid2.failPage=8;
- CHECK(writeInventoryTags(original,uids)==1);CHECK(repositionDirections.size()==1&&rfid1.pageCount==36&&rfid2.writeCalls==12);
+ CHECK(writeInventoryTags(original,uids)==1);CHECK(repositionDirections.size()==1&&rfid1.pageCount==20&&rfid2.writeCalls==12);
  resetReaders();rfid1.failPage=8;repositionAccepts=1;repositionMode=2;
  CHECK(writeInventoryTags(original,uids)==0);CHECK(rfid1.writeCalls==12&&rfid2.writeCalls==0);
  resetReaders();rfid1.failPage=8;repositionAccepts=1;repositionMode=3;
@@ -267,9 +285,21 @@ int main(){int checks=0;
  // Recovery follows UID identity even if the spool is turned around.
  InventoryRequest recovery;recovery.uids[0]=uids[0];recovery.uids[1]=uids[1];memcpy(recovery.payload,original,144);
  resetReaders();CHECK(writeInventoryTags(original,uids)==2);CHECK(inventoryVerifyPair(recovery,false));
- std::swap(rfid1,rfid2);CHECK(inventoryVerifyPair(recovery,false));rfid1.mem[100]^=1;CHECK(!inventoryVerifyPair(recovery,false));
+ std::swap(rfid1,rfid2);CHECK(inventoryVerifyPair(recovery,false));rfid1.mem[100]^=1;CHECK(inventoryVerifyPair(recovery,false));rfid1.mem[95]^=1;CHECK(!inventoryVerifyPair(recovery,false));
  resetReaders();std::swap(rfid1,rfid2);CHECK(inventoryVerifyPair(recovery,true));rfid1=rfid2;CHECK(!inventoryVerifyPair(recovery,true));
+ // Studio/SDK erasure is all zeros; retained signatures are outside the blank record.
+ for(int capacity:{0x12,0x3E,0x6D}){
+  resetReaders();rfid1.mem[14]=capacity;memset(rfid1.mem+16,0,80);bool readOK=false;
+  CHECK(isBlankNtag(rfid1,&readOK)&&readOK);
+  for(int at=16;at<96;at++){rfid1.mem[at]=1;CHECK(!isBlankNtag(rfid1));rfid1.mem[at]=0;}
+ }
+ resetReaders();for(auto r:{&rfid1,&rfid2})memset(r->mem+16,0,80);
+ CHECK(inventoryVerifyPair(recovery,true));CHECK(writeInventoryTags(original,uids)==2);CHECK(inventoryVerifyPair(recovery,false));
+ for(auto r:{&rfid1,&rfid2})for(int i=96;i<160;i++)CHECK(r->mem[i]==0xA5);
  // Verification retries only missing targets/failed reads, never mismatches.
+ resetReaders();memset(rfid1.mem+16,0,80);rfid1.failReadPage=0x14;bool readBlank=true;
+ CHECK(!isBlankNtag(rfid1,&readBlank)&&!readBlank);
+ CHECK(writeInventoryTags(original,uids)==0&&rfid1.writeCalls==0&&rfid2.writeCalls==0);
  resetReaders();rfid1.noUidAttempts=2;CHECK(inventoryVerifyPair(recovery,true));CHECK(rfid1.selections==3);
  resetReaders();rfid2.readFailures=1;CHECK(inventoryVerifyPair(recovery,true));CHECK(rfid2.selections==2);
  resetReaders();rfid1.present=false;CHECK(!inventoryVerifyPair(recovery,true));CHECK(rfid1.selections==3);
@@ -459,7 +489,7 @@ int main(){int checks=0;
  resetFlow();flowPick=0;flowUsed=true;flowReleaseAccept=true;flowReleaseOK=false;runInventoryAssignment(false);CHECK(flowReleases==1&&flowWrites==0&&flowCommits==0);
  resetFlow();flowPick=0;flowListRetry=true;flowListFailures=1;runInventoryAssignment(false);CHECK(flowLoading==2&&flowWrites==1&&flowCommits==1);
  // Erase uses the same bounded writer, but accepts either original NTAG marker.
- uint8_t blankPayload[144]={3,0,0xFE,0};resetReaders();
+ uint8_t blankPayload[144]={};resetReaders();
  for(auto r:{&rfid1,&rfid2}){memcpy(r->mem+16,original,144);r->pageCount=0;}
  CHECK(writeInventoryTags(blankPayload,uids,true)==2);
  for(auto r:{&rfid1,&rfid2}){CHECK(memcmp(r->mem+16,blankPayload,144)==0);CHECK(isBlankNtag(*r));CHECK(!r->protectedWrite);}
@@ -554,6 +584,29 @@ int main(){int checks=0;
  for(int i=0;i<2;i++){auto w=bc["writes"][i];CHECK(w["currentDocument"].containsKey("exists")&&!w["currentDocument"]["exists"].as<bool>());CHECK(w["updateTransforms"][0]["setToServerValue"]=="REQUEST_TIME");}
  // An already-created pair reconciles a precondition failure without replacing edits.
  requests.clear();postedBodies.clear();postReplies={409};bi.ok=false;inventoryBambuCreate(bi);CHECK(bi.ok&&bi.found&&postedBodies.size()==1);
+ // Verification must release the POST's TLS client before opening another one.
+ requests.clear();postedBodies.clear();postReplies={200};bi.ok=false;requireSingleTls=true;
+ inventoryBambuCreate(bi);CHECK(bi.ok&&bi.found&&postedBodies.size()==1);CHECK(activeTlsClients==0);requireSingleTls=false;
+ // A failed create with neither document saved retries the same conditional batch.
+ for(int transient:{-1,408,429,503,401}){
+  requests.clear();postedBodies.clear();refreshes=0;bi.ok=false;
+  pages={"{}","{}",bpages[0],bpages[1]};pageCodes={404,404,200,200};postReplies={transient,200};
+  inventoryBambuCreate(bi);CHECK(bi.ok&&bi.found&&postedBodies.size()==2);
+  CHECK(postedBodies[0]==postedBodies[1]);CHECK(refreshes==(transient==401?1:0));
+ }
+ // Exhaustion, permanent refusal, an unreadable lookup or an occupied twin stops safely.
+ requests.clear();postedBodies.clear();bi.ok=false;postReplies={503,503,503,200};
+ pages={"{}","{}","{}","{}","{}","{}"};pageCodes={404,404,404,404,404,404};
+ inventoryBambuCreate(bi);CHECK(!bi.ok&&!bi.found&&postedBodies.size()==3);
+ for(int permanent:{400,403,409,412}){
+  requests.clear();postedBodies.clear();bi.ok=false;postReplies={permanent,200};
+  pages={"{}","{}"};pageCodes={404,404};inventoryBambuCreate(bi);CHECK(!bi.ok&&postedBodies.size()==1);
+ }
+ requests.clear();postedBodies.clear();bi.ok=false;postReplies={503,200};pages={"{}"};pageCodes={503};
+ inventoryBambuCreate(bi);CHECK(!bi.ok&&postedBodies.size()==1);
+ requests.clear();postedBodies.clear();bi.ok=false;pages={"{}",bpages[1]};pageCodes={404,200};
+ inventoryBambuCreate(bi);CHECK(!bi.ok&&bi.error==I18N_INV_PAIR_USED&&postedBodies.size()==1);
+ pageCodes.clear();pages=bpages;requests.clear();postedBodies.clear();
  postedBodies.clear();bi.cancel=true;bi.ok=false;inventoryBambuCreate(bi);CHECK(!bi.ok&&postedBodies.empty());bi.cancel=false;
  bi.bambu.material="Unknown";inventoryBambuCreate(bi);CHECK(!bi.ok&&postedBodies.empty());bi.bambu=bt;
  bi.rawWeight=100;inventoryBambuCreate(bi);CHECK(!bi.ok&&postedBodies.empty());
@@ -964,7 +1017,7 @@ void inventoryClearPending(){flowClears++;gInventoryAssignmentPending=gInventory
 void inventoryMarkConflict(){gInventoryAssignmentConflict=true;}
 int inventoryPickSpool(std::vector<InventorySpool>&,int=0){return flowPick;}
 bool selectSpoolContainer(InventoryRequest& r,bool){flowContainerQuestions++;r.containerWeight=201;return flowContainerOK;}
-uint8_t flowWriteTags(const uint8_t* payload,const String*,bool erase=false){flowWrites++;if(erase)flowErasePrepared=flowReleasePrepares>0;for(int i=0;i<flowWriteResult&&i<2;i++){auto& reader=i?rfid2:rfid1;memcpy(reader.mem+16,payload,144);if(!erase)reader.mem[16+39]=((i+1)<<4)|2;}return flowWriteResult;}
+uint8_t flowWriteTags(const uint8_t* payload,const String*,bool erase=false){flowWrites++;if(erase)flowErasePrepared=flowReleasePrepares>0;for(int i=0;i<flowWriteResult&&i<2;i++){auto& reader=i?rfid2:rfid1;memcpy(reader.mem+16,payload,erase?144:80);if(!erase)reader.mem[16+39]=((i+1)<<4)|2;}return flowWriteResult;}
 bool inventoryWait(InventoryRequest& r,int title,bool){
  if(title==I18N_INV_LOADING)flowLoading++;if(r.op==InventoryRequest::PREPARE)flowPrepareTitle=title;
  r.cancel=flowCancel;r.error=I18N_INV_FAILED;
@@ -1032,6 +1085,7 @@ struct PageProbe{struct{uint8_t size=7,uidByte[10]={4,1,2,3,4,5,6};}uid;PagePN _
     with tempfile.TemporaryDirectory(ignore_cleanup_errors=True,prefix='tigerscale-inventory-') as folder:
         cpp=Path(folder)/'inventory.cpp';exe=Path(folder)/('inventory.exe' if os.name=='nt' else 'inventory')
         fixture='const char* BAMBU_PRODUCT_FIXTURE=R"JSON('+ (ROOT/'scripts/fixtures/bambu-pla-basic-white.json').read_text(encoding='utf-8') + ')JSON";\n'
+        fixture+='const char* TAG_ENCODING_FIXTURE=R"JSON('+ (ROOT/'scripts/fixtures/tigertag-encoding.json').read_text(encoding='utf-8') + ')JSON";\n'
         actual_recovery=extract('static int inventoryPostCommit(').replace('static int inventoryPostCommit(', 'static int testPostCommit(')+extract('static void inventoryPrepare(')+extract('static bool inventoryReconcile(')+extract('static void inventoryPrepareRelease(')+extract('static void inventoryRun(')+extract('static void inventoryMarkConflict(').replace('static void inventoryMarkConflict(', 'static void testMarkConflict(')+extract('static bool inventoryReadPending(').replace('static bool inventoryReadPending(', 'static bool testReadPending(')
         workflow_code=r"""
 bool slopeBufFull=true,servoEnabled=false,hwMotorConnected=false;float wfCurrentSlope=0,stableCandidate=NAN;

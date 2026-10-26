@@ -276,7 +276,9 @@ covers both tag erasure and inventory unlinking. The account must be reachable s
 be prepared before either tag changes. Fresh pair preflight precedes erasure;
 missing/swapped/unsupported tags prevent writing. Erasure uses the same
 three-attempt writer and full read-back checks as
-assignment, clearing the 144-byte TigerTag filament record to empty NDEF. It does
+assignment, clearing all 144 bytes of TigerTag data and signature to zero, as
+Tiger Studio does. Blank detection accepts both empty NDEF patterns and an
+all-zero 80-byte data record; it rejects partially erased zero-header records. It does
 not erase the UID, capability/configuration/lock pages, additional user memory
 beyond that record. Once both tags verify blank, one atomic inventory update
 preserves the spool without tags and removes the old UID assignments. The
@@ -334,16 +336,21 @@ are never silently overwritten, and a concurrently changed source cannot be dele
 
 The tag codec follows the
 [official SDK field mapping](https://github.com/TigerTag-Project/TigerTag-SDK-JS/blob/main/src/tag.js).
-It writes an unsigned TigerTag or TigerTag+ according to the product ID, copies
+It encodes TigerTag or TigerTag+ according to the product ID, copies
 material/color/print settings, and converts inventory remaining grams to the
 chip's unit (mg/g/kg). It rejects values outside the binary field ranges.
+The message field takes exactly the first 28 UTF-8 bytes, including a partial
+character at the boundary, matching both official SDK serializers.
 The pair shares a real chip-epoch timestamp, and both cloud records use exactly
-that timestamp, with indices 1/2 and 2/2. Signature bytes remain zero; no
-manufacturer certification is created.
+that timestamp, with indices 1/2 and 2/2. Normal programming leaves signature
+bytes untouched; no manufacturer certification is created.
 
 Both original UIDs must still select as blank before either tag is altered.
-Only user pages 04-27 are writable. The body is verified before committing the
-format marker on page 04, then all 144 bytes are compared. Only a fully verified
+Normal programming writes only pages 04-17 (80 bytes); pages 18-27 are cleared
+only by explicit erasure. The body is verified before committing the format
+marker on page 04, then the same 80 bytes are compared. Recovery verification
+also excludes signature bytes. The saved assignment buffer remains 144 bytes
+for journal compatibility. Only a fully verified
 pair can trigger the account commit. Partial failures report the verified count,
 with up to three attempts per tag for missed reads or writes. Retries reselect
 the original UID and reuse the exact payload, timestamp and pair index. A

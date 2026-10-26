@@ -25,24 +25,24 @@
 //   CLOUD PARSING                                         2916- 2930
 //   WIFI SETUP                                            2931- 7869
 //   LITTLEFS                                              7870- 8169
-//   FIREBASE AUTHENTICATION                               8170-10812
-//   WEBSOCKET                                            10813-10839
-//   CLOUD WORKER TASK  (non-blocking Firestore on core 0) 10840-10980
-//   UNIFIED WS FRAME BUILDER                             10981-11105
-//   WEIGHT FILTER HELPERS                                11106-11121
-//   POST-SEND STATE RESET (shared by all send paths)     11122-11142
-//   SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight) 11143-11246
-//   WEB SERVER                                           11247-12272
-//   CLOUD COMMUNICATION                                  12273-12457
-//   WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING) 12458-12994
-//   mDNS                                                 12995-13032
-//   SCALE                                                13033-13238
-//   ES8311 codec beep (I2S slave mode, Wire I2C @ 0x18)  13239-13364
-//   RFID                                                 13365-15440
-//   OTA — Over-the-air firmware + filesystem update    15441-16117
-//   LVGL bridge + main weigh screen                      16118-17043
-//   Remote live view: the screen out, taps back in       17044-17893
-//   SETUP & LOOP                                         17894-18914
+//   FIREBASE AUTHENTICATION                               8170-10826
+//   WEBSOCKET                                            10827-10853
+//   CLOUD WORKER TASK  (non-blocking Firestore on core 0) 10854-10994
+//   UNIFIED WS FRAME BUILDER                             10995-11119
+//   WEIGHT FILTER HELPERS                                11120-11135
+//   POST-SEND STATE RESET (shared by all send paths)     11136-11156
+//   SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight) 11157-11260
+//   WEB SERVER                                           11261-12286
+//   CLOUD COMMUNICATION                                  12287-12471
+//   WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING) 12472-13008
+//   mDNS                                                 13009-13046
+//   SCALE                                                13047-13252
+//   ES8311 codec beep (I2S slave mode, Wire I2C @ 0x18)  13253-13378
+//   RFID                                                 13379-15468
+//   OTA — Over-the-air firmware + filesystem update    15469-16145
+//   LVGL bridge + main weigh screen                      16146-17071
+//   Remote live view: the screen out, taps back in       17072-17921
+//   SETUP & LOOP                                         17922-18942
 //
 //   To regenerate:  bash scripts/update_toc.sh
 // --- TOC END -----------------------------------------------
@@ -9937,6 +9937,7 @@ static bool inventoryColorLess(const InventorySpool& a, const InventorySpool& b)
 }
 
 static bool inventoryEncode(JsonObjectConst f, uint32_t stamp, uint8_t* data) {
+    // Retain the journal's 144-byte buffer; normal programming uses only 80.
     memset(data, 0, 144);
     auto put = [&](uint8_t at, uint8_t bytes, double value) -> bool {
         double maxValue = bytes == 4 ? 4294967295.0 : (double)((1UL << (8 * bytes)) - 1);
@@ -9967,8 +9968,7 @@ static bool inventoryEncode(JsonObjectConst f, uint32_t stamp, uint8_t* data) {
     if (!put(76, 3, remaining) || !put(44, 2, round(inventoryNumber(f, "TD") * 10)) || !put(32, 4, stamp)) return false;
     String message = inventoryText(f, "message");
     size_t len = std::min((size_t)28, (size_t)message.length());
-    // Do not cut a UTF-8 character in half at the protocol's 28-byte boundary.
-    if (len < message.length()) while (len && ((uint8_t)message[len] & 0xC0) == 0x80) len--;
+    // Match the official SDKs: truncate encoded bytes, even within a UTF-8 character.
     memcpy(data + 48, message.c_str(), len);
     return true;
 }
@@ -10765,15 +10765,29 @@ static void inventoryBambuCreate(InventoryRequest& r) {
         timestamp["fieldPath"] = "updatedAt"; timestamp["setToServerValue"] = "REQUEST_TIME";
     }
     if (r.cancel || commit.overflowed()) return;
-    WiFiClientSecure client; client.setInsecure(); HTTPClient http; http.setTimeout(15000);
-    if (!http.begin(client, String(INVENTORY_ROOT) + ":commit")) return;
-    http.addHeader("Authorization", "Bearer " + firebaseIdToken); http.addHeader("Content-Type", "application/json");
     String body; serializeJson(commit, body);
-    int code = http.POST(body); http.end();
-    netLog("[BAMBU] inventory create HTTP=" + String(code));
-    // Also reconciles a lost response or a retry after restart, without overwrites.
-    r.ok = false; inventoryBambuLookup(r);
-    r.ok = r.ok && r.found;
+    for (uint8_t attempt = 0; attempt < 3 && !r.cancel; attempt++) {
+        int code = -1;
+        {
+            WiFiClientSecure client; client.setInsecure(); HTTPClient http; http.setTimeout(15000);
+            if (http.begin(client, String(INVENTORY_ROOT) + ":commit")) {
+                http.addHeader("Authorization", "Bearer " + firebaseIdToken); http.addHeader("Content-Type", "application/json");
+                code = http.POST(body); http.end();
+            }
+        }
+        netLog("[BAMBU] inventory create attempt=" + String(attempt + 1) + " HTTP=" + String(code));
+        // A lost reply may already have saved both documents. Reconcile before
+        // retrying, and retain exists=false so account edits are never overwritten.
+        r.ok = false; inventoryBambuLookup(r);
+        bool missing = r.ok && !r.found;
+        r.ok = r.ok && r.found;
+        if (!missing || r.cancel || attempt == 2) return;
+        if (code == 401) {
+            firebaseTokenMs = millis() - 3300000UL;
+            if (!ensureFirebaseToken()) return;
+        } else if (code >= 0 && code != 408 && code != 429 && code < 500) return;
+        delay(250 * (attempt + 1));
+    }
 }
 
 static void inventoryRun(InventoryRequest* r) {
@@ -14279,6 +14293,18 @@ static bool isBlankNtag(PN532Reader &reader, bool* readOk = nullptr, uint32_t* m
     if (data[0] != 0xE1 || (data[1] != 0x10 && data[1] != 0x11) || data[3] != 0x00) return false;
     if (data[2] != 0x12 && data[2] != 0x3E && data[2] != 0x6D) return false;
 
+    // Studio/SDK erasure produces all-zero user data. Check the entire 80-byte
+    // record so a partially erased tag is not mistaken for blank. Signatures
+    // are outside this record and must not affect blank detection.
+    const uint8_t zeros[16] = {};
+    if (memcmp(data + 4, zeros, 12) == 0) {
+        for (uint8_t page = 0x04; page <= 0x14; page += 4) {
+            if (!reader.readPages16(page, data)) { if (readOk) *readOk = false; return false; }
+            if (memcmp(data, zeros, sizeof(data))) return false;
+        }
+        return true;
+    }
+
     const uint8_t emptyNdef[] = { 0x03, 0x00, 0xFE, 0x00 };
     const uint8_t empty213[] = { 0x01, 0x03, 0xA0, 0x0C, 0x34, 0x03, 0x00, 0xFE };
     const uint8_t emptyRecord[] = { 0x03, 0x04, 0xD8, 0x00, 0x00, 0x00, 0xFE, 0x00 };
@@ -14365,7 +14391,9 @@ static uint8_t writeInventoryTags(const uint8_t *payload, const String *uids, bo
     }
 
     uint8_t data[144];
-    memcpy(data, payload, sizeof(data));
+    const uint8_t dataSize = erase ? 144 : 80;
+    // Normal writes preserve signature pages 0x18-0x27; explicit erase clears them.
+    memcpy(data, payload, dataSize);
     uint8_t written = 0;
     for (uint8_t slot = 0; slot < 2; slot++) {
         PN532Reader &reader = *readers[slot];
@@ -14386,7 +14414,7 @@ static uint8_t writeInventoryTags(const uint8_t *payload, const String *uids, bo
                     mismatch = marker != blankMarkers[slot] && !(started && marker == targetMarker);
                     ok = !mismatch;
                 }
-                for (uint8_t page = 0x05; ok && page <= 0x27; page++) {
+                for (uint8_t page = 0x05; ok && page < 0x04 + dataSize / 4; page++) {
                     if (removed()) { ok = false; break; }
                     phase = "body write";
                     started = true;
@@ -14401,7 +14429,7 @@ static uint8_t writeInventoryTags(const uint8_t *payload, const String *uids, bo
                         ok = !removed() && select(reader, uids[slot], "WRITE_COMMIT")
                           && reader.writePage(0x04, data);
                     }
-                    for (uint8_t offset = 0; ok && offset < sizeof(data); offset += 16) {
+                    for (uint8_t offset = 0; ok && offset < dataSize; offset += 16) {
                         uint8_t actual[16];
                         uint8_t skip = stage == 0 && offset == 0 ? 4 : 0;
                         phase = stage == 0 ? "body verify" : "final verify";
@@ -14834,8 +14862,8 @@ static bool inventoryVerifyPair(const InventoryRequest& r, bool blank) {
                 if (!ok && readOk) hardFailure = true;
             }
             if (ok && !blank) {
-                uint8_t expected[144]; memcpy(expected, r.payload, 144); expected[39] = ((index + 1) << 4) | 2;
-                for (int at = 0; ok && at < 144; at += 16) {
+                uint8_t expected[80]; memcpy(expected, r.payload, sizeof(expected)); expected[39] = ((index + 1) << 4) | 2;
+                for (int at = 0; ok && at < sizeof(expected); at += 16) {
                     uint8_t actual[16];
                     ok = reader->readPages16(4 + at / 4, actual);
                     if (ok && memcmp(actual, expected + at, 16)) { ok = false; hardFailure = true; }
@@ -15152,7 +15180,7 @@ static void runEraseTags() {
     lvglAddSpinner(col); lvglAddCenteredLabel(col, t(I18N_ERASE_BUSY), LVCOL_TEXT, &gFont20);
     lv_scr_load(busy); lv_timer_handler();
     // Clear the 144-byte TigerTag record, leaving UID/CC/locks/config intact.
-    uint8_t empty[144] = {0x03, 0x00, 0xFE, 0x00};
+    uint8_t empty[144] = {};
     uint8_t erased = writeInventoryTags(empty, uids, true);
     lv_scr_load(prev); lv_obj_del(busy);
     bool released = !release.releaseCount;
