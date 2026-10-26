@@ -171,6 +171,9 @@ enum LangKey : uint8_t {
     I18N_INV_RECOVER,
     I18N_INV_UNVERIFIED,
     I18N_INV_DISCARD,
+    I18N_INV_KEEP,
+    I18N_INV_RESET,
+    I18N_INV_CONFLICT,
     I18N_INV_EXIT,
     I18N_INV_TAG_USED,
     I18N_INV_RELEASE_Q,
@@ -189,6 +192,9 @@ enum LangKey : uint8_t {
     I18N_SPOOL_TYPE,
     I18N_SPOOL_TYPE_LOADING,
     I18N_SPOOL_TYPE_FAILED,
+    I18N_TAG_MOVE_LEFT,
+    I18N_TAG_MOVE_RIGHT,
+    I18N_LOADING_SPOOL,
     I18N_COUNT,
 };
 
@@ -338,6 +344,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* INV_RECOVER */ "Resume the pending spool assignment? Keep the same two tags on the readers.",
         /* INV_UNVERIFIED */ "Pair not verified. Keep the original tags in place and retry. If both were erased, cancel the pending assignment to start again.",
         /* INV_DISCARD */ "Both original tags are blank. Discard the pending assignment and choose a spool again?",
+        /* INV_KEEP */ "Which entry should be kept?",
+        /* INV_RESET */ "Erase both tags and cancel the pending assignment? Inventory data will be preserved without tags.",
+        /* INV_CONFLICT */ "Assignment needs reset\nUse Erase tag",
         /* INV_EXIT */ "Exit",
         /* INV_TAG_USED */ "A tag already has an inventory assignment. No tags were written.",
         /* INV_RELEASE_Q */ "Clear the old tag assignment? Previous inventory entries will be kept without tags.",
@@ -356,6 +365,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* SPOOL_TYPE */ "Choose spool type",
         /* SPOOL_TYPE_LOADING */ "Loading spool types...",
         /* SPOOL_TYPE_FAILED */ "Could not load or save spool type. Lift and replace the spool to retry.",
+        /* TAG_MOVE_LEFT */ "Move spool slightly LEFT toward the reader. Keep it on the scale.",
+        /* TAG_MOVE_RIGHT */ "Move spool slightly RIGHT toward the reader. Keep it on the scale.",
+        /* LOADING_SPOOL */ "Loading spool...",
     },
     // PT (Brazilian Portuguese — Studio's "pt")
     {
@@ -499,6 +511,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* INV_RECOVER */ "Retomar a operacao pendente? Mantenha as mesmas duas tags nos leitores.",
         /* INV_UNVERIFIED */ "Par nao verificado. Recoloque as tags originais e tente novamente. Se ambas foram apagadas, cancele a operacao pendente.",
         /* INV_DISCARD */ "As duas tags originais estao vazias. Descartar a operacao pendente e escolher a bobina novamente?",
+        /* INV_KEEP */ "Qual registro manter?",
+        /* INV_RESET */ "Apagar as duas tags e cancelar a operacao pendente? Os dados ficam no estoque sem tags.",
+        /* INV_CONFLICT */ "Operacao pendente\nApague as tags",
         /* INV_EXIT */ "Sair",
         /* INV_TAG_USED */ "Uma tag ja esta atribuida no estoque. Nenhuma tag foi gravada.",
         /* INV_RELEASE_Q */ "Limpar a atribuicao anterior? Os registros antigos serao mantidos sem tags.",
@@ -517,6 +532,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* SPOOL_TYPE */ "Escolha o carretel",
         /* SPOOL_TYPE_LOADING */ "Carregando carreteis...",
         /* SPOOL_TYPE_FAILED */ "Falha ao carregar ou salvar o carretel. Retire e recoloque para tentar novamente.",
+        /* TAG_MOVE_LEFT */ "Mova o carretel um pouco para a ESQUERDA, em direção ao leitor. Mantenha-o na balança.",
+        /* TAG_MOVE_RIGHT */ "Mova o carretel um pouco para a DIREITA, em direção ao leitor. Mantenha-o na balança.",
+        /* LOADING_SPOOL */ "Carregando carretel...",
     },
     // FR
     {
@@ -660,6 +678,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* INV_RECOVER */ "Reprendre operation en attente ? Gardez les deux memes tags sur les lecteurs.",
         /* INV_UNVERIFIED */ "Paire non verifiee. Replacez les tags et reessayez. Si les deux sont effaces, annulez operation en attente.",
         /* INV_DISCARD */ "Les deux tags sont vides. Abandonner operation en attente et choisir une bobine ?",
+        /* INV_KEEP */ "Quelle fiche conserver ?",
+        /* INV_RESET */ "Effacer les deux tags et annuler l association en attente ? Les donnees restent en stock sans tags.",
+        /* INV_CONFLICT */ "Association en attente\nEffacez les tags",
         /* INV_EXIT */ "Quitter",
         /* INV_TAG_USED */ "Un tag a deja une affectation dans le stock. Aucun tag ecrit.",
         /* INV_RELEASE_Q */ "Effacer affectation precedente ? Les anciennes entrees seront conservees sans tags.",
@@ -678,6 +699,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* SPOOL_TYPE */ "Choisir la bobine",
         /* SPOOL_TYPE_LOADING */ "Chargement des bobines...",
         /* SPOOL_TYPE_FAILED */ "Impossible de charger ou enregistrer la bobine. Retirez et reposez pour reessayer.",
+        /* TAG_MOVE_LEFT */ "Déplacez légèrement la bobine vers le lecteur GAUCHE, sans la soulever.",
+        /* TAG_MOVE_RIGHT */ "Déplacez légèrement la bobine vers le lecteur DROIT, sans la soulever.",
+        /* LOADING_SPOOL */ "Chargement de la bobine...",
     },
     // ES
     {
@@ -821,6 +845,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* INV_RECOVER */ "Reanudar asignacion pendiente? Manten las mismas dos tags en los lectores.",
         /* INV_UNVERIFIED */ "Par no verificado. Recoloca las tags originales y reintenta. Si ambas se borraron, cancela la asignacion pendiente.",
         /* INV_DISCARD */ "Ambas tags originales estan vacias. Descartar asignacion pendiente y elegir bobina de nuevo?",
+        /* INV_KEEP */ "Que registro conservar?",
+        /* INV_RESET */ "Borrar ambas etiquetas y cancelar la asignacion pendiente? Los datos quedan en inventario sin etiquetas.",
+        /* INV_CONFLICT */ "Asignacion pendiente\nBorre las etiquetas",
         /* INV_EXIT */ "Salir",
         /* INV_TAG_USED */ "Una etiqueta ya esta asignada en el inventario. No se escribieron etiquetas.",
         /* INV_RELEASE_Q */ "Borrar la asignacion anterior? Las entradas anteriores se conservaran sin etiquetas.",
@@ -839,6 +866,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* SPOOL_TYPE */ "Elegir bobina",
         /* SPOOL_TYPE_LOADING */ "Cargando bobinas...",
         /* SPOOL_TYPE_FAILED */ "No se pudo cargar o guardar la bobina. Retirela y vuelva a colocarla para reintentar.",
+        /* TAG_MOVE_LEFT */ "Mueva un poco la bobina hacia el lector IZQUIERDO, sin levantarla.",
+        /* TAG_MOVE_RIGHT */ "Mueva un poco la bobina hacia el lector DERECHO, sin levantarla.",
+        /* LOADING_SPOOL */ "Cargando bobina...",
     },
     // DE
     {
@@ -982,6 +1012,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* INV_RECOVER */ "Ausstehende Zuordnung fortsetzen? Dieselben zwei Tags an den Lesern lassen.",
         /* INV_UNVERIFIED */ "Paar nicht geprueft. Originaltags auflegen und erneut versuchen. Wurden beide geloescht, ausstehende Zuordnung abbrechen.",
         /* INV_DISCARD */ "Beide Originaltags sind leer. Ausstehende Zuordnung verwerfen und Spule erneut waehlen?",
+        /* INV_KEEP */ "Welchen Eintrag behalten?",
+        /* INV_RESET */ "Beide Tags loschen und die offene Zuordnung abbrechen? Die Daten bleiben ohne Tags im Bestand.",
+        /* INV_CONFLICT */ "Zuordnung offen\nTags loschen",
         /* INV_EXIT */ "Schliessen",
         /* INV_TAG_USED */ "Ein Tag ist bereits im Bestand zugeordnet. Keine Tags geschrieben.",
         /* INV_RELEASE_Q */ "Alte Tag-Zuordnung loeschen? Bisherige Bestandseintraege bleiben ohne Tags erhalten.",
@@ -1000,6 +1033,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* SPOOL_TYPE */ "Spulentyp waehlen",
         /* SPOOL_TYPE_LOADING */ "Spulentypen laden...",
         /* SPOOL_TYPE_FAILED */ "Spulentyp konnte nicht geladen oder gespeichert werden. Spule abheben und erneut auflegen.",
+        /* TAG_MOVE_LEFT */ "Spule etwas zum LINKEN Leser schieben. Auf der Waage lassen.",
+        /* TAG_MOVE_RIGHT */ "Spule etwas zum RECHTEN Leser schieben. Auf der Waage lassen.",
+        /* LOADING_SPOOL */ "Spule wird geladen...",
     },
     // ZH (Han characters, not pinyin)
     // The glyphs come from a generated subset font — scripts/make-cjk-font.sh —
@@ -1149,6 +1185,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* INV_RECOVER */ "继续上次未完成的保存？请将原来的两个标签放在读卡器上。",
         /* INV_UNVERIFIED */ "标签对未验证。请放好原标签后重试。如果两个都已擦除，请取消待保存的信息后重试。",
         /* INV_DISCARD */ "两个原标签均为空。取消待保存的信息并重新选择料盘？",
+        /* INV_KEEP */ "保留哪个记录？",
+        /* INV_RESET */ "清除两个标签并取消待完成的绑定？库存记录将保留。",
+        /* INV_CONFLICT */ "绑定未完成\n请清除标签",
         /* INV_EXIT */ "退出",
         /* INV_TAG_USED */ "标签已在库存中使用。未写入标签。",
         /* INV_RELEASE_Q */ "清除旧标签关联？旧库存记录将保留，不带标签。",
@@ -1167,6 +1206,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* SPOOL_TYPE */ "选择线盘类型",
         /* SPOOL_TYPE_LOADING */ "正在加载线盘类型...",
         /* SPOOL_TYPE_FAILED */ "无法加载或保存线盘类型。请取下线盘后重新放置以重试。",
+        /* TAG_MOVE_LEFT */ "将料盘移向左侧读卡器。不要抬起料盘。",
+        /* TAG_MOVE_RIGHT */ "将料盘移向右侧读卡器。不要抬起料盘。",
+        /* LOADING_SPOOL */ "正在加载料盘...",
     },
     // IT
     {
@@ -1310,6 +1352,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* INV_RECOVER */ "Riprendere operazione in attesa? Mantieni gli stessi due tag sui lettori.",
         /* INV_UNVERIFIED */ "Coppia non verificata. Riposiziona i tag originali e riprova. Se entrambi cancellati, annulla operazione in attesa.",
         /* INV_DISCARD */ "Entrambi i tag originali sono vuoti. Annullare operazione in attesa e scegliere una bobina?",
+        /* INV_KEEP */ "Quale voce conservare?",
+        /* INV_RESET */ "Cancellare entrambi i tag e annullare l assegnazione in attesa? I dati restano in inventario senza tag.",
+        /* INV_CONFLICT */ "Assegnazione in attesa\nCancella i tag",
         /* INV_EXIT */ "Esci",
         /* INV_TAG_USED */ "Un tag e gia assegnato in inventario. Nessun tag scritto.",
         /* INV_RELEASE_Q */ "Rimuovere assegnazione precedente? Le vecchie voci resteranno senza tag.",
@@ -1328,6 +1373,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* SPOOL_TYPE */ "Scegli bobina",
         /* SPOOL_TYPE_LOADING */ "Caricamento bobine...",
         /* SPOOL_TYPE_FAILED */ "Impossibile caricare o salvare la bobina. Sollevare e riposizionare per riprovare.",
+        /* TAG_MOVE_LEFT */ "Sposta leggermente la bobina verso il lettore SINISTRO, senza sollevarla.",
+        /* TAG_MOVE_RIGHT */ "Sposta leggermente la bobina verso il lettore DESTRO, senza sollevarla.",
+        /* LOADING_SPOOL */ "Caricamento bobina...",
     },
     // PL
     {
@@ -1471,6 +1519,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* INV_RECOVER */ "Wznowic oczekujaca operacje? Pozostaw te same dwa tagi na czytnikach.",
         /* INV_UNVERIFIED */ "Para niezweryfikowana. Poloz oryginalne tagi i ponow. Jesli oba wymazano, anuluj operacje oczekujaca.",
         /* INV_DISCARD */ "Oba oryginalne tagi sa puste. Odrzucic operacje i ponownie wybrac szpule?",
+        /* INV_KEEP */ "Ktory wpis zachowac?",
+        /* INV_RESET */ "Wymazac oba tagi i anulowac oczekujace przypisanie? Dane pozostana w magazynie bez tagow.",
+        /* INV_CONFLICT */ "Przypisanie oczekuje\nWymaz tagi",
         /* INV_EXIT */ "Wyjdz",
         /* INV_TAG_USED */ "Tag jest juz przypisany w zapasach. Tagi nie zostaly zapisane.",
         /* INV_RELEASE_Q */ "Usunac stare przypisanie? Poprzednie wpisy pozostana bez tagow.",
@@ -1489,6 +1540,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* SPOOL_TYPE */ "Wybierz szpule",
         /* SPOOL_TYPE_LOADING */ "Ladowanie szpul...",
         /* SPOOL_TYPE_FAILED */ "Nie mozna wczytac lub zapisac szpuli. Podnies i odloz szpule, aby ponowic.",
+        /* TAG_MOVE_LEFT */ "Przesuń szpulę lekko do LEWEGO czytnika. Nie podnoś jej z wagi.",
+        /* TAG_MOVE_RIGHT */ "Przesuń szpulę lekko do PRAWEGO czytnika. Nie podnoś jej z wagi.",
+        /* LOADING_SPOOL */ "Wczytywanie szpuli...",
     },
     // PT-PT (European Portuguese — Studio's "pt-pt")
     {
@@ -1632,6 +1686,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* INV_RECOVER */ "Retomar a operacao pendente? Mantenha as mesmas duas tags nos leitores.",
         /* INV_UNVERIFIED */ "Par nao verificado. Recoloque as tags originais e tente novamente. Se ambas foram apagadas, cancele a operacao pendente.",
         /* INV_DISCARD */ "As duas tags originais estao vazias. Descartar a operacao pendente e escolher a bobina novamente?",
+        /* INV_KEEP */ "Que registo manter?",
+        /* INV_RESET */ "Apagar as duas tags e cancelar a operacao pendente? Os dados ficam no inventario sem tags.",
+        /* INV_CONFLICT */ "Operacao pendente\nApague as tags",
         /* INV_EXIT */ "Sair",
         /* INV_TAG_USED */ "Uma etiqueta ja esta atribuida no inventario. Nenhuma etiqueta foi gravada.",
         /* INV_RELEASE_Q */ "Limpar a atribuicao anterior? Os registos antigos serao mantidos sem etiquetas.",
@@ -1650,6 +1707,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* SPOOL_TYPE */ "Escolher bobina",
         /* SPOOL_TYPE_LOADING */ "A carregar bobinas...",
         /* SPOOL_TYPE_FAILED */ "Nao foi possivel carregar ou guardar a bobina. Retire e volte a colocar para repetir.",
+        /* TAG_MOVE_LEFT */ "Mova a bobina um pouco para a ESQUERDA, em direção ao leitor. Mantenha-a na balança.",
+        /* TAG_MOVE_RIGHT */ "Mova a bobina um pouco para a DIREITA, em direção ao leitor. Mantenha-a na balança.",
+        /* LOADING_SPOOL */ "A carregar bobina...",
     },
     // RU (Russian — Studio's "ru")
     {
@@ -1793,6 +1853,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* INV_RECOVER */ "Продолжить незавершенную операцию? Оставьте те же два тега на считывателях.",
         /* INV_UNVERIFIED */ "Пара не проверена. Верните исходные теги и повторите. Если оба стерты, отмените ожидающую операцию.",
         /* INV_DISCARD */ "Оба исходных тега пусты. Отменить ожидающую операцию и выбрать катушку заново?",
+        /* INV_KEEP */ "Какую запись сохранить?",
+        /* INV_RESET */ "Стереть обе метки и отменить ожидающее назначение? Данные останутся в запасах без меток.",
+        /* INV_CONFLICT */ "Назначение не завершено\nСотрите метки",
         /* INV_EXIT */ "Выход",
         /* INV_TAG_USED */ "Тег уже назначен в запасах. Теги не записаны.",
         /* INV_RELEASE_Q */ "Очистить прежнее назначение? Прежние записи останутся в запасах без тегов.",
@@ -1811,6 +1874,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* SPOOL_TYPE */ "Vybor tipa katushki",
         /* SPOOL_TYPE_LOADING */ "Zagruzka katushek...",
         /* SPOOL_TYPE_FAILED */ "Ne udalos zagruzit ili sohranit tip katushki. Snimite i snova postavte katushku.",
+        /* TAG_MOVE_LEFT */ "Сдвиньте катушку немного к ЛЕВОМУ считывателю. Не снимайте её с весов.",
+        /* TAG_MOVE_RIGHT */ "Сдвиньте катушку немного к ПРАВОМУ считывателю. Не снимайте её с весов.",
+        /* LOADING_SPOOL */ "Загрузка катушки...",
     },
     // NL (Dutch — Studio's "nl")
     {
@@ -1954,6 +2020,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* INV_RECOVER */ "Openstaande toewijzing hervatten? Houd dezelfde twee tags bij de lezers.",
         /* INV_UNVERIFIED */ "Paar niet gecontroleerd. Plaats de originele tags en probeer opnieuw. Zijn beide gewist, annuleer de openstaande toewijzing.",
         /* INV_DISCARD */ "Beide originele tags zijn leeg. Openstaande toewijzing wissen en opnieuw kiezen?",
+        /* INV_KEEP */ "Welke vermelding bewaren?",
+        /* INV_RESET */ "Beide tags wissen en de wachtende koppeling annuleren? De gegevens blijven zonder tags in de voorraad.",
+        /* INV_CONFLICT */ "Koppeling wacht\nWis de tags",
         /* INV_EXIT */ "Sluiten",
         /* INV_TAG_USED */ "Een tag is al toegewezen in de voorraad. Geen tags geschreven.",
         /* INV_RELEASE_Q */ "Oude toewijzing wissen? Vorige voorraaditems blijven zonder tags bewaard.",
@@ -1972,6 +2041,9 @@ static const char* const kStrings[NUM_LANGS][I18N_COUNT] = {
         /* SPOOL_TYPE */ "Kies spoeltype",
         /* SPOOL_TYPE_LOADING */ "Spoeltypes laden...",
         /* SPOOL_TYPE_FAILED */ "Spoeltype laden of opslaan mislukt. Til de spoel op en plaats hem terug om opnieuw te proberen.",
+        /* TAG_MOVE_LEFT */ "Schuif de spoel iets naar de LINKER lezer. Laat hem op de weegschaal staan.",
+        /* TAG_MOVE_RIGHT */ "Schuif de spoel iets naar de RECHTER lezer. Laat hem op de weegschaal staan.",
+        /* LOADING_SPOOL */ "Spoel laden...",
     },
 };
 

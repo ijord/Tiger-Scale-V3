@@ -12,7 +12,7 @@ One Arduino C++ file, **about 17 500 lines**, divided into 26 numbered sections 
 by `bash scripts/update_toc.sh` from the `// §N — TITLE` banners, so it cannot
 silently disagree with the file.
 
-`i18n.h` holds every on-device string: **158 keys × 11 languages**
+`i18n.h` holds every on-device string: **164 keys × 11 languages**
 (EN/PT/FR/ES/DE/ZH/IT/PL). The web UI's translations are separate, under
 `data/www/locales/`.
 
@@ -58,6 +58,20 @@ HX711 → readWeight() → median + EMA filter → handleWeighWorkflow() → clo
 ```
 WF_IDLE → WF_SCANNING → WF_STABLE_WAIT → WF_SENDING → WF_DONE → WF_IDLE
 ```
+
+Known-tag admission samples the load cell again after NFC work; a rejected or
+stale read does not enter the UID dedup/latch cache or delay the next poll.
+This prevents a blue recognized-tag icon and beep from being followed by a
+false no-UID timeout. Cached identity is painted before metadata refresh.
+Blue means the tag format was recognized, not that its inventory lookup finished.
+
+Normal status progresses through Checking tag pair, Loading spool, Weighing,
+Sending, Synced, then Remove. Inventory/container lookup finishes before the
+weighing phase is shown, while the stability window continues in parallel.
+Erase remains disabled throughout identification, lookup, weighing and sending,
+including the normal reread after assigning tags. Completed sessions and idle
+recovery/erase retries can enable it once background work is finished; both the
+button and action use the same eligibility check.
 
 - **`readWeight()`** applies a median filter then an exponential moving average.
   Small fluctuations use a fine EMA alpha of 0.04; the fast path requires both
@@ -228,8 +242,9 @@ refills) and any account `containerOverrides.containerWeight` corrections applie
 The chosen `container_id` and `container_weight` are saved on both new tag records
 in the same assignment commit. Existing Firestore value types are replaced when
 setting these fields, including integer weights and explicit nulls. Pending
-assignments from older firmware repair duplicate container value types before
-retrying, retaining the original tag identities and source-version precondition.
+assignments from older firmware recover their selected container from the saved
+batch. Retries keep the original tag identities but rebuild the batch from current
+inventory data with fresh version preconditions.
 A failed save keeps the recovery record; server error details are logged. Erasing
 tags preserves these fields.
 
@@ -256,8 +271,8 @@ absence when scanning resumes. Zeroing a loaded platform does not hide its tags.
 The home button reads "Zero" over "Scale" and retains the former Tare behavior
 (set/save the offset and cancel pending automatic tare). Erase tag shares that area and is disabled unless
 two distinct tags have been physically detected, and is also disabled when both
-are confirmed blank. One confirmation covers both tag erasure and inventory
-unlinking. The account must be reachable so a conditional inventory release can
+are confirmed blank, except when resetting a pending assignment. One confirmation
+covers both tag erasure and inventory unlinking. The account must be reachable so a conditional inventory release can
 be prepared before either tag changes. Fresh pair preflight precedes erasure;
 missing/swapped/unsupported tags prevent writing. Erasure uses the same
 three-attempt writer and full read-back checks as
@@ -271,8 +286,21 @@ assignments and reports the count. Successful erasure and unlinking return home
 without an OK dialog. If unlinking fails, the user can retry immediately without
 rewriting tags, or lift/replace later to use the existing blank-tag release flow.
 An uncertain response is reconciled against the exact preserved inventory data.
-Pending account
-assignment recovery blocks erasure, preventing loss of unsaved tag identities.
+Pending assignment recovery can be cancelled through Erase tag, including when
+the original tags are already blank. Reset requires the same two physical UIDs
+and the original account. The journal is cleared only after both tags verify
+blank and the inventory release succeeds; partial erasure or failed release
+retains recovery. Unrelated tags and another account cannot cancel it.
+
+Write and erase failures keep their current session open with a translated
+left/right positioning prompt and Try again / Cancel. The direction identifies
+the failing reader (first slot right, second slot left); tags already verified
+are not rewritten. Preflight failures can also be retried after repositioning.
+A changed UID or physical removal stops the operation, and cancelling preserves
+the existing partial-write recovery behavior. Failed verification reads get
+three bounded attempts with same-UID reselection before restarting a tag; a
+successful read still has to match every expected byte. Failure logs name the
+write/erase phase and distinguish read errors from data mismatches.
 
 Before listing spools, the cloud worker checks the presented UIDs for existing
 assignments and offers release if needed. This makes the previous spool available
@@ -285,10 +313,13 @@ records, cross-links their twins and deletes the chipless source atomically.
 An existing UID assignment produces a distinct registered-tag condition,
 rather than the changed-inventory-record error. The user can confirm releasing
 that assignment: the old inventory fields are first copied to `TigerData_`
-entries, with chip-version/index/twin/backup fields removed. Matching reciprocal
-twins with equal spool data become one untagged entry; differing records are
-both kept. Container, remaining weight, product links and unknown fields remain
-unchanged. References to tags outside the presented pair block automatic release.
+entries, with chip-version/index/twin/backup fields removed. A physical pair
+produces one untagged entry. Backup/listing flags and weight updates do not split reciprocal twins; the most recent `last_update` supplies
+the remaining weight. Conflicting retained fields or two unlinked records open
+a picker asking which entry to keep. Exit changes nothing. Both document
+versions are re-read after selection; an edit invalidates the choice. Container,
+product links and unknown fields from the chosen entry are retained. References
+to tags outside the presented pair block automatic release.
 
 Both presented tags must freshly verify as blank before release. One conditional
 batch creates the preserved entries and deletes the old UID records at their
@@ -336,16 +367,31 @@ clears stale UID and metadata state without taring. The blank-picker prompt
 remains latched until physical removal. Failed or cancelled assignments still
 inhibit normal weighing until the assignment load is lifted.
 
-Before writing, the exact request and chip payload are saved to LittleFS as
-`/tag-assignment-commit.json` and `/tag-assignment.json`. They are runtime files,
-not filesystem-image assets. A failed account save can be retried without NFC
-writes; Cancel retains it. After a restart or the next lift/place, recovery first
-reconciles an already-completed atomic commit, or verifies the original pair
-against the saved 144 bytes before retrying. Account changes cannot redirect the
-saved request to another account. A source-version conflict retains both the
-source and recovery record; erase both original tags and explicitly discard the
-pending assignment to select the refreshed inventory again. Do not upload a new
-filesystem image while a recovery record is pending.
+Before writing, the tag identities, source ID, selected container and physical
+payload are saved in `/tag-assignment.json`; `/tag-assignment-commit.json` holds
+the prepared batch. These are runtime files, not filesystem-image assets.
+Partial physical writes and failed account saves retain recovery. Retries verify
+the original pair, reconcile an already completed commit, then re-read the source
+and target records before constructing a fresh conditional batch. App-only edits
+and current remaining weight are preserved. The tag's weight snapshot need not
+match a later account weight, but changes to its filament payload are conflicts.
+The saved batch is never blindly replayed. Local parsing uses the same nesting
+limit as live responses so nested catalog/history metadata remains valid.
+
+A missing/reassigned source, existing UID assignment or permanent commit
+rejection marks a persistent conflict. An incomplete physical write also
+requires reset because its tags cannot be verified for a commit. The home screen
+shows Assignment needs reset / Use Erase tag, and subsequent placement does not
+reopen Resume. Another spool cannot trigger recovery for the saved tag pair.
+Temporary network failures still offer retry. Erase/reset is an explicit way to cancel
+with the original pair, including partially written tags; it preserves current
+inventory data and honors the same conflict selection and version checks.
+
+Fresh empty-platform samples clear displayed material, UIDs and session state
+independently of pending recovery. Late metadata cannot restore an old spool on
+an empty platform, and stale HX711 readings cannot qualify removal. Changing
+accounts cannot redirect a journal or discard another account's assignment.
+Do not replace the filesystem image while a recovery record is pending.
 
 Run `python scripts/test-inventory.py` after a PlatformIO build to exercise the
 actual codec, migration construction, writer failure paths, color sorting and

@@ -15,34 +15,34 @@
 //
 //   TABLE OF CONTENTS                                     line range
 //   ---------------------------------------------------- -----------
-//   HARDWARE CONFIGURATION                                 319-  551
-//   OTA CONFIGURATION                                      552-  586
-//   FORWARD DECLARATIONS                                   587-  895
-//   WEIGHT ROUNDING                                        896-  915
-//   GLOBAL OBJECTS                                         916- 1686
-//   CONFIGURATION VARIABLES                               1687- 2122
-//   OLED DISPLAY                                          2123- 2904
-//   CLOUD PARSING                                         2905- 2919
-//   WIFI SETUP                                            2920- 7858
-//   LITTLEFS                                              7859- 8158
-//   FIREBASE AUTHENTICATION                               8159-10730
-//   WEBSOCKET                                            10731-10757
-//   CLOUD WORKER TASK  (non-blocking Firestore on core 0) 10758-10898
-//   UNIFIED WS FRAME BUILDER                             10899-11023
-//   WEIGHT FILTER HELPERS                                11024-11039
-//   POST-SEND STATE RESET (shared by all send paths)     11040-11060
-//   SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight) 11061-11164
-//   WEB SERVER                                           11165-12188
-//   CLOUD COMMUNICATION                                  12189-12373
-//   WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING) 12374-12907
-//   mDNS                                                 12908-12945
-//   SCALE                                                12946-13151
-//   ES8311 codec beep (I2S slave mode, Wire I2C @ 0x18)  13152-13277
-//   RFID                                                 13278-15233
-//   OTA — Over-the-air firmware + filesystem update    15234-15910
-//   LVGL bridge + main weigh screen                      15911-16835
-//   Remote live view: the screen out, taps back in       16836-17685
-//   SETUP & LOOP                                         17686-18707
+//   HARDWARE CONFIGURATION                                 321-  553
+//   OTA CONFIGURATION                                      554-  588
+//   FORWARD DECLARATIONS                                   589-  897
+//   WEIGHT ROUNDING                                        898-  917
+//   GLOBAL OBJECTS                                         918- 1688
+//   CONFIGURATION VARIABLES                               1689- 2125
+//   OLED DISPLAY                                          2126- 2915
+//   CLOUD PARSING                                         2916- 2930
+//   WIFI SETUP                                            2931- 7869
+//   LITTLEFS                                              7870- 8169
+//   FIREBASE AUTHENTICATION                               8170-10812
+//   WEBSOCKET                                            10813-10839
+//   CLOUD WORKER TASK  (non-blocking Firestore on core 0) 10840-10980
+//   UNIFIED WS FRAME BUILDER                             10981-11105
+//   WEIGHT FILTER HELPERS                                11106-11121
+//   POST-SEND STATE RESET (shared by all send paths)     11122-11142
+//   SHARED WEIGHT PUSH HANDLER (used by /api/weight and /api/push-weight) 11143-11246
+//   WEB SERVER                                           11247-12272
+//   CLOUD COMMUNICATION                                  12273-12457
+//   WEIGH WORKFLOW  (IDLE → SCANNING → STABLE_WAIT → SENDING) 12458-12994
+//   mDNS                                                 12995-13032
+//   SCALE                                                13033-13238
+//   ES8311 codec beep (I2S slave mode, Wire I2C @ 0x18)  13239-13364
+//   RFID                                                 13365-15440
+//   OTA — Over-the-air firmware + filesystem update    15441-16117
+//   LVGL bridge + main weigh screen                      16118-17043
+//   Remote live view: the screen out, taps back in       17044-17893
+//   SETUP & LOOP                                         17894-18914
 //
 //   To regenerate:  bash scripts/update_toc.sh
 // --- TOC END -----------------------------------------------
@@ -277,7 +277,7 @@ struct BambuTag {
     float diameter = 0;
 };
 struct InventoryRequest {
-    enum Operation { LIST, PREPARE, COMMIT, RECONCILE, PREPARE_RELEASE, RELEASE, CONTAINERS, SET_CONTAINER, BAMBU_LOOKUP, BAMBU_CREATE, BAMBU_UPGRADE } op = LIST;
+    enum Operation { LIST, PREPARE, COMMIT, PREPARE_RELEASE, RELEASE, CONTAINERS, SET_CONTAINER, BAMBU_LOOKUP, BAMBU_CREATE, BAMBU_UPGRADE } op = LIST;
     BambuTag bambu;
     bool found = false;
     uint32_t productId = 0;
@@ -287,6 +287,8 @@ struct InventoryRequest {
     String containerId;
     float containerWeight = 0;
     String source, version, owner, conflictUid, uids[2], releaseIds[2], previousLabel;
+    String releaseVersions[2];
+    int8_t releaseChoice = -1;
     uint8_t releaseCount = 0;
     uint32_t stamp = 0;
     uint8_t payload[144] = {};
@@ -1822,6 +1824,7 @@ static float gBlankLoadSampleWeight = NAN;
 static uint32_t gBlankLoadSampleMs = 0;
 static bool gAssignmentRecoveryPending = true;
 static volatile bool gInventoryAssignmentPending = false;
+static volatile bool gInventoryAssignmentConflict = false;
 static String gBlankTagUid[2];
 static uint32_t gBlankTagSeenMs[2] = { 0, 0 };
 static BambuTag gBambuTags[2];
@@ -2606,6 +2609,14 @@ static void drawWifiIconLarge(int16_t ix, int16_t iy, uint16_t color) {
     gfx->fillRect(ix+9, iy+14, 4, 3, color);
 }
 
+static LangKey weighProgressLabel() {
+    if (wfPhase == WF_IDLE || wfPhase == WF_SCANNING) {
+        return lastUID.length() && !wfContainerFetched ? I18N_LOADING_SPOOL : I18N_CHECK_TAG_PAIR;
+    }
+    if (wfPhase == WF_SENDING) return gContainerFetchPending || gContainerFetchDone ? I18N_LOADING_SPOOL : I18N_SENDING;
+    return I18N_WEIGHING;
+}
+
 void displayWeightWithState(float weight, const String& uid, OledState state) {
     if (!gDisplayReady || gfx == nullptr) return;
 
@@ -2647,7 +2658,7 @@ void displayWeightWithState(float weight, const String& uid, OledState state) {
                 statusBg  = 0x07E0; statusFg = 0x0000; break;
             case OLED_STATE_WEIGHING:
             case OLED_STATE_UID_DETECTED:
-                statusLbl = t(I18N_WEIGHING);
+                statusLbl = t(weighProgressLabel());
                 statusBg  = 0xFD20; statusFg = 0x0000; break;
             case OLED_STATE_SENDING:
                 statusLbl = t(I18N_SENDING);
@@ -5425,7 +5436,7 @@ static void runHardwareTest() {
 // trap in docs/FIRMWARE.md. Both call sites are loop() or a screen function.
 //
 // `sub` is optional; pass nullptr for a single-line modal.
-static bool lvglAskYesNo(const char *body, const char *sub) {
+static bool lvglAskYesNo(const char *body, const char *sub, LangKey yes = I18N_YES, LangKey no = I18N_NO) {
     static int sAnswer;
     sAnswer = -1;
     auto answerCb = [](lv_event_t *e) {
@@ -5499,8 +5510,8 @@ static bool lvglAskYesNo(const char *body, const char *sub) {
     lv_obj_set_style_bg_opa(vr, LV_OPA_COVER, 0);
 
     const struct { LangKey key; lv_color_t col; int val; int x; } BTN[2] = {
-        { I18N_YES, LVCOL_GREEN, 1, 0          },
-        { I18N_NO,  LVCOL_MUTED, 0, CARD_W / 2 },
+        { yes, LVCOL_GREEN, 1, 0          },
+        { no,  LVCOL_MUTED, 0, CARD_W / 2 },
     };
     for (int i = 0; i < 2; i++) {
         lv_obj_t *b = lv_btn_create(card);
@@ -10048,6 +10059,7 @@ static bool inventorySaveJson(const char* path, JsonVariantConst doc) {
 
 static void inventoryClearPending() {
     gInventoryAssignmentPending = false;
+    gInventoryAssignmentConflict = false;
     LittleFS.remove(ASSIGN_META);
     LittleFS.remove(ASSIGN_COMMIT);
 }
@@ -10059,6 +10071,9 @@ static bool inventoryReadPending(InventoryRequest& r) {
     r.owner = meta["owner"].as<String>(); r.source = meta["source"].as<String>();
     r.uids[0] = meta["uid0"].as<String>(); r.uids[1] = meta["uid1"].as<String>();
     r.stamp = meta["stamp"];
+    r.containerId = meta["containerId"] | "";
+    r.containerWeight = meta["containerWeight"] | 0.0f;
+    gInventoryAssignmentConflict = meta["conflict"] | false;
     String hex = meta["payload"].as<String>();
     if (hex.length() != 288 || !r.stamp || r.uids[0].length() != 14 || r.uids[1].length() != 14
         || r.uids[0] == r.uids[1] || r.owner.isEmpty() || r.source.isEmpty()) return false;
@@ -10068,7 +10083,26 @@ static bool inventoryReadPending(InventoryRequest& r) {
         if (*end) return false;
         r.payload[i] = value;
     }
-    return LittleFS.exists(ASSIGN_COMMIT);
+    // Older journals kept the selected container only in the prepared batch.
+    if (r.containerId.isEmpty() && LittleFS.exists(ASSIGN_COMMIT)) {
+        InventoryJson commit(1536 * 1024);
+        File saved = LittleFS.open(ASSIGN_COMMIT, "r");
+        if (saved && !deserializeJson(commit, saved, DeserializationOption::NestingLimit(96))) {
+            JsonObjectConst fields = commit["writes"][0]["update"]["fields"];
+            r.containerId = inventoryText(fields, "container_id");
+            r.containerWeight = inventoryNumber(fields, "container_weight");
+        }
+    }
+    return true;
+}
+
+static void inventoryMarkConflict() {
+    gInventoryAssignmentConflict = true;
+    DynamicJsonDocument meta(2048);
+    File file = LittleFS.open(ASSIGN_META, "r");
+    if (!file || deserializeJson(meta, file)) return;
+    file.close(); meta["conflict"] = true;
+    if (!inventorySaveJson(ASSIGN_META, meta.as<JsonVariantConst>())) netLog("[INVENTORY] conflict journal save failed");
 }
 
 static void inventoryList(InventoryRequest& r) {
@@ -10134,18 +10168,33 @@ static void inventoryList(InventoryRequest& r) {
     r.ok = true;
 }
 
-static void inventoryPrepare(InventoryRequest& r) {
-    if (LittleFS.exists(ASSIGN_META)) { r.error = I18N_INV_RECOVER; return; }
+static void inventoryPrepare(InventoryRequest& r, bool refresh = false) {
+    if (!refresh && LittleFS.exists(ASSIGN_META)) { r.error = I18N_INV_RECOVER; return; }
     InventoryJson source(512 * 1024);
-    if (inventoryGet(inventoryDocUrl(r.owner, r.source), source) != 200) return;
+    int sourceCode = inventoryGet(inventoryDocUrl(r.owner, r.source), source);
+    if (sourceCode != 200) {
+        netLog("[INVENTORY] source " + r.source + " HTTP=" + String(sourceCode));
+        if (sourceCode == 404) r.error = I18N_INV_CHANGED;
+        return;
+    }
     JsonObjectConst fields = source["fields"];
-    if (!inventoryChipless(r.source, fields) || source["updateTime"].as<String>() != r.version) {
+    if (!inventoryChipless(r.source, fields) || (!refresh && source["updateTime"].as<String>() != r.version)) {
         r.error = I18N_INV_CHANGED; return;
     }
     time_t now = time(nullptr);
     if (now <= 946684800) return;  // pairing identity requires a real clock
-    r.stamp = (uint32_t)(now - 946684800);
-    if (!inventoryEncode(fields, r.stamp, r.payload)) { r.error = I18N_INV_INVALID; return; }
+    if (!refresh) r.stamp = (uint32_t)(now - 946684800);
+    uint8_t payload[144];
+    if (!inventoryEncode(fields, r.stamp, payload)) { r.error = I18N_INV_INVALID; return; }
+    // Remaining weight is a snapshot on the tag, not the spool's identity.
+    // Keep its written bytes while preserving the latest account weight below.
+    if (refresh) memcpy(payload + 76, r.payload + 76, 3);
+    if (refresh && memcmp(payload, r.payload, sizeof(payload))) {
+        netLog("[INVENTORY] current source differs from written payload: " + r.source);
+        r.error = I18N_INV_CHANGED; return;
+    }
+    memcpy(r.payload, payload, sizeof(payload));
+    r.version = source["updateTime"].as<String>();
     InventoryJson small(4096);
     for (const String& uid : r.uids) {
         int code = inventoryGet(inventoryDocUrl(r.owner, uid) + "?mask.fieldPaths=uid", small);
@@ -10194,6 +10243,7 @@ static void inventoryPrepare(InventoryRequest& r) {
     DynamicJsonDocument meta(2048);
     meta["owner"] = r.owner; meta["source"] = r.source;
     meta["uid0"] = r.uids[0]; meta["uid1"] = r.uids[1]; meta["stamp"] = r.stamp;
+    meta["containerId"] = r.containerId; meta["containerWeight"] = r.containerWeight;
     String hex; hex.reserve(288);
     for (uint8_t b : r.payload) { char h[3]; snprintf(h, sizeof(h), "%02X", b); hex += h; }
     meta["payload"] = hex;
@@ -10223,8 +10273,8 @@ static bool inventoryReconcile(InventoryRequest& r) {
 }
 
 // Preserve an erased tag's former inventory contents before releasing its UID.
-// Reciprocal twins with identical spool data become one chipless entry. If the
-// records differ, keep both rather than discard information from either one.
+// A physical pair becomes one chipless spool. Conflicting retained fields need
+// an explicit choice, tied to the versions the user actually reviewed.
 static bool inventoryBuildRelease(InventoryRequest& r, JsonObjectConst old0, JsonObjectConst old1, const bool* exists, InventoryJson& commit) {
     commit.clear();
     JsonObjectConst records[2] = {old0, old1};
@@ -10242,7 +10292,9 @@ static bool inventoryBuildRelease(InventoryRequest& r, JsonObjectConst old0, Jso
     }
     auto identityField = [](const char* key) {
         return !strcmp(key,"uid") || !strcmp(key,"twin_tag_uid") || !strcmp(key,"tag_index")
-            || !strcmp(key,"tag_count") || !strcmp(key,"updatedAt") || !strcmp(key,"last_update");
+            || !strcmp(key,"tag_count") || !strcmp(key,"updatedAt") || !strcmp(key,"last_update")
+            || !strcmp(key,"weight_available") || !strcmp(key,"rfidBackup")
+            || !strcmp(key,"rfidListed") || !strcmp(key,"needUpdateAt");
     };
     if (paired) for (int i = 0; i < 2; i++) {
         JsonObjectConst a = records[i]["fields"], b = records[1-i]["fields"];
@@ -10251,10 +10303,31 @@ static bool inventoryBuildRelease(InventoryRequest& r, JsonObjectConst old0, Jso
             if (!b.containsKey(field.key().c_str()) || field.value() != b[field.key().c_str()]) paired = false;
         }
     }
+    if (r.releaseChoice > 1) r.releaseChoice = -1;
+    if (r.releaseChoice >= 0 && (r.releaseVersions[0] != old0["updateTime"].as<String>()
+        || r.releaseVersions[1] != old1["updateTime"].as<String>())) r.releaseChoice = -1;
+    if (exists[0] && exists[1] && !paired && r.releaseChoice < 0) {
+        r.spools.clear();
+        for (int i = 0; i < 2; i++) {
+            JsonObjectConst f = records[i]["fields"];
+            InventorySpool spool; spool.id = r.uids[i];
+            spool.version = r.releaseVersions[i] = records[i]["updateTime"].as<String>();
+            spool.material = inventoryText(f,"material");
+            spool.label = inventoryText(f,"manufacturer") + " " + spool.material + "\n"
+                + inventoryText(f,"name") + " " + inventoryText(f,"message") + "\n"
+                + String(inventoryNumber(f,"weight_available"),0) + " g / " + r.uids[i];
+            spool.rgb = ((uint32_t)inventoryNumber(f,"color_r") << 16)
+                | ((uint32_t)inventoryNumber(f,"color_g") << 8) | (uint32_t)inventoryNumber(f,"color_b");
+            inventoryColor(spool);
+            r.spools.push_back(spool);
+        }
+        r.error = I18N_INV_KEEP; return false;
+    }
     JsonArray writes = commit.createNestedArray("writes");
     String prefix = "projects/tigertag-connect/databases/(default)/documents/users/" + r.owner + "/inventory/";
-    int primary = paired && inventoryNumber(old1["fields"],"last_update") > inventoryNumber(old0["fields"],"last_update") ? 1 : 0;
-    for (int i = 0; i < 2; i++) if (exists[i] && !(paired && i != primary)) {
+    int primary = !exists[0] ? 1 : !exists[1] ? 0 : r.releaseChoice >= 0 ? r.releaseChoice
+        : inventoryNumber(old1["fields"],"last_update") > inventoryNumber(old0["fields"],"last_update") ? 1 : 0;
+    for (int i = 0; i < 2; i++) if (exists[i] && i == primary) {
         String id;
         do { id = "TigerData_" + String(esp_random()); }
         while (r.releaseCount && id == r.releaseIds[0]);
@@ -10273,7 +10346,7 @@ static bool inventoryBuildRelease(InventoryRequest& r, JsonObjectConst old0, Jso
         if (name.isEmpty()) name = inventoryText(records[i]["fields"], "message");
         if (r.previousLabel.length()) r.previousLabel += "\n";
         r.previousLabel += name + "\n" + r.uids[i];
-        if (paired) r.previousLabel += " / " + r.uids[1-i];
+        if (exists[1-i]) r.previousLabel += " / " + r.uids[1-i];
     }
     for (int i = 0; i < 2; i++) if (exists[i]) {
         JsonObject remove = writes.createNestedObject();
@@ -10321,7 +10394,7 @@ static int inventoryPostCommit(const char* path) {
         InventoryJson commit(1536 * 1024);
         File pending = LittleFS.open(path, "r");
         if (!pending) return -1;
-        DeserializationError error = deserializeJson(commit, pending);
+        DeserializationError error = deserializeJson(commit, pending, DeserializationOption::NestingLimit(96));
         pending.close();
         if (error) return -1;
         if (inventoryRepairContainerValues(commit["writes"].as<JsonArray>())) {
@@ -10717,14 +10790,23 @@ static void inventoryRun(InventoryRequest* r) {
     if (r->op == InventoryRequest::PREPARE) { inventoryPrepare(*r); return; }
     if (r->op == InventoryRequest::PREPARE_RELEASE) { inventoryPrepareRelease(*r); return; }
     if (r->op == InventoryRequest::RELEASE) { inventoryRelease(*r); return; }
-    if (r->op == InventoryRequest::RECONCILE) { r->ok = inventoryReconcile(*r); return; }
-    if (!LittleFS.exists(ASSIGN_COMMIT)) { r->error = I18N_INV_STORAGE; return; }
+    if (inventoryReconcile(*r)) { r->ok = true; return; }
+    // Rebuild from current data, preserving app edits that do not change the
+    // physical payload. Never replay a batch containing stale inventory fields.
+    inventoryPrepare(*r, true);
+    if (!r->ok) {
+        if (r->error == I18N_INV_CHANGED || r->error == I18N_INV_TAG_USED || r->error == I18N_INV_INVALID) inventoryMarkConflict();
+        return;
+    }
+    r->ok = false;
     int code = inventoryPostCommit(ASSIGN_COMMIT);
     if (code == 200) { inventoryClearPending(); r->ok = true; }
     else {
         netLog("[INVENTORY] pair commit HTTP=" + String(code));
         r->ok = inventoryReconcile(*r);
-        if (!r->ok && (code == 409 || code == 412)) r->error = I18N_INV_CHANGED;
+        if (!r->ok && (code == 400 || code == 409 || code == 412)) {
+            r->error = I18N_INV_CHANGED; inventoryMarkConflict();
+        }
     }
 }
 
@@ -12113,6 +12195,8 @@ void setupWebServer() {
         doc["rfidReadFailCount"] = gRfidReadFailCount;
         doc["autoTareCount"] = gAutoTareCount;
         doc["zeroRequired"] = (bool)gZeroRequired;
+        doc["inventoryPending"] = (bool)gInventoryAssignmentPending;
+        doc["inventoryConflict"] = (bool)gInventoryAssignmentConflict;
         doc["rawWeight"] = isfinite(gBlankLoadSampleWeight) ? gBlankLoadSampleWeight : 0;
         doc["rawSampleAgeMs"] = gBlankLoadSampleMs ? millis() - gBlankLoadSampleMs : 0;
         doc["zeroOffset"] = scale.get_offset();
@@ -12509,7 +12593,7 @@ void handleWeighWorkflow(float w) {
             gCurrentSessionId  = ++gSessionCounter;
             gCurrentSessionStartedAtMs = now;
             gCurrentSessionStartWeight = w;
-            sendPhase          = "scanning";   // distinct from "countdown" — no UID yet
+            sendPhase          = "scanning";   // tag identification / inventory lookup
             sendCountdown      = (int)((SPOOL_SCAN_DURATION_MS + 999) / 1000);
             gReadyWasZero      = false;        // reset for next session
             // Reset removal-detection state for new session
@@ -12663,6 +12747,9 @@ void handleWeighWorkflow(float w) {
         if (gContainerFetchPending && gContainerBFetchUID.length() == 0 && lastUID2.length() > 0) {
             gContainerBFetchUID = lastUID2;
         }
+
+        // Show lookup before weighing; stability tracking above still runs in parallel.
+        if (lastUID.length() && !wfContainerFetched && (gContainerFetchPending || gContainerFetchDone)) return;
 
         // Countdown scan
         int secsLeft = (int)((int32_t)(scanDuration - (now - wfScanStartMs) + 999) / 1000);
@@ -14065,6 +14152,13 @@ static bool fetchMetaFromFirestore(const String& uidHex) {
 
 static void readTigerTagMetadata(PN532Reader &reader, const String& uidHex) {
     if (uidHex.startsWith("TigerData_Bambu_")) { fetchMetaFromFirestore(uidHex); return; }
+    auto cached = gMetaCache.find(uidHex);
+    if (cached == gMetaCache.end() && loadMetaCacheFromNVS(uidHex)) cached = gMetaCache.find(uidHex);
+    if (cached != gMetaCache.end()) {
+        gLastManufacturer = cached->second.mfr; gLastMaterial = cached->second.mat;
+        if (!cached->second.col.isEmpty()) gLastColor = cached->second.col;
+        displayWeightWithState(currentWeight, uidHex, OLED_STATE_UID_DETECTED);
+    }
     dumpTigerTagPages(reader, uidHex);
 
     uint8_t data[16];
@@ -14209,32 +14303,61 @@ static uint8_t writeInventoryTags(const uint8_t *payload, const String *uids, bo
         lv_timer_handler();
         return gBlankFlowRemoved;
     };
+    auto read = [&](PN532Reader& reader, const String& uid, uint8_t page, uint8_t* data, const char* phase) {
+        for (uint8_t attempt = 0; attempt < 3; attempt++) {
+            if (removed()) return false;
+            if (attempt) {
+                finishRfidSession(reader);
+                delay(30);
+                if (!select(reader, uid, "WRITE_READ_RETRY")) {
+                    netLog(String(erase ? "[TAG ERASE]" : "[TAG WRITE]") + " read recovery uid=" + uid
+                           + (mismatch ? " UID changed" : " selection failed"));
+                    if (mismatch) return false;
+                    continue;
+                }
+            }
+            if (reader.readPages16(page, data)) return true;
+            char detail[96];
+            snprintf(detail, sizeof(detail), " read failed phase=%s page=%02X attempt=%u uid=", phase, page, attempt + 1);
+            netLog(String(erase ? "[TAG ERASE]" : "[TAG WRITE]") + detail + uid);
+        }
+        return false;
+    };
+
+    auto reposition = [&](uint8_t slot) {
+        if (mismatch || removed()) return false;
+        bool retry = lvglAskYesNo(t(slot == 0 ? I18N_TAG_MOVE_RIGHT : I18N_TAG_MOVE_LEFT), nullptr,
+                                 I18N_WIFI_RETRY, I18N_CANCEL);
+        return retry && !removed();
+    };
 
     // Check every target before altering either tag. The UI may have been open
     // for minutes, so the cached detection alone is not permission to write.
     for (uint8_t slot = 0; slot < 2; slot++) {
         bool ready = false;
-        for (uint8_t attempt = 0; attempt < 6; attempt++) {
-            if (removed()) return 0;
-            bool selected = select(*readers[slot], uids[slot], "WRITE_CHECK"), ok = selected, readOk = false;
-            if (ok) {
-                if (erase) {
-                    uint8_t header[16];
-                    readOk = readers[slot]->readPages16(0x03, header);
-                    ok = readOk && readers[slot]->uid.size == 7 && readers[slot]->uid.uidByte[0] == 0x04
-                      && header[0] == 0xE1 && (header[1] == 0x10 || header[1] == 0x11) && header[3] == 0
-                      && (header[2] == 0x12 || header[2] == 0x3E || header[2] == 0x6D);
-                    if (ok) blankMarkers[slot] = (uint32_t)header[4] << 24 | (uint32_t)header[5] << 16 | (uint32_t)header[6] << 8 | header[7];
-                } else ok = isBlankNtag(*readers[slot], &readOk, &blankMarkers[slot]);
-                if (!ok && readOk) mismatch = true;
+        do {
+            for (uint8_t attempt = 0; attempt < 6; attempt++) {
+                if (removed()) return 0;
+                bool selected = select(*readers[slot], uids[slot], "WRITE_CHECK"), ok = selected, readOk = false;
+                if (ok) {
+                    if (erase) {
+                        uint8_t header[16];
+                        readOk = readers[slot]->readPages16(0x03, header);
+                        ok = readOk && readers[slot]->uid.size == 7 && readers[slot]->uid.uidByte[0] == 0x04
+                          && header[0] == 0xE1 && (header[1] == 0x10 || header[1] == 0x11) && header[3] == 0
+                          && (header[2] == 0x12 || header[2] == 0x3E || header[2] == 0x6D);
+                        if (ok) blankMarkers[slot] = (uint32_t)header[4] << 24 | (uint32_t)header[5] << 16 | (uint32_t)header[6] << 8 | header[7];
+                    } else ok = isBlankNtag(*readers[slot], &readOk, &blankMarkers[slot]);
+                    if (!ok && readOk) mismatch = true;
+                }
+                finishRfidSession(*readers[slot]);
+                if (ok) { ready = true; break; }
+                netLog(String(erase ? "[TAG ERASE]" : "[TAG WRITE]") + " preflight attempt=" + String(attempt + 1)
+                       + " uid=" + uids[slot] + (mismatch ? " mismatch" : selected ? " header read failed" : " selection failed"));
+                if (mismatch) return 0;
+                delay(100);
             }
-            finishRfidSession(*readers[slot]);
-            if (ok) { ready = true; break; }
-            netLog(String(erase ? "[TAG ERASE]" : "[TAG WRITE]") + " preflight attempt=" + String(attempt + 1)
-                   + " uid=" + uids[slot] + (mismatch ? " mismatch" : selected ? " header read failed" : " selection failed"));
-            if (mismatch) return 0;
-            delay(100);
-        }
+        } while (!ready && reposition(slot));
         if (!ready) {
             netLog(String(erase ? "[TAG ERASE]" : "[TAG WRITE]") + " preflight failed uid=" + uids[slot]);
             return 0;
@@ -14249,46 +14372,57 @@ static uint8_t writeInventoryTags(const uint8_t *payload, const String *uids, bo
         bool verified = false, started = false;
         if (!erase) data[39] = ((slot + 1) << 4) | tagCount;
         uint32_t targetMarker = (uint32_t)data[0] << 24 | (uint32_t)data[1] << 16 | (uint32_t)data[2] << 8 | data[3];
-        for (uint8_t attempt = 0; attempt < 3; attempt++) {
-            if (removed()) return written;
-            bool ok = select(reader, uids[slot], "WRITE");
-            uint8_t header[16];
-            if (ok) ok = reader.readPages16(0x04, header);
-            if (ok) {
-                uint32_t marker = (uint32_t)header[0] << 24 | (uint32_t)header[1] << 16 | (uint32_t)header[2] << 8 | header[3];
-                // Only this session's preflighted tag may be resumed. A lost
-                // write ACK can leave either its original or final marker.
-                mismatch = marker != blankMarkers[slot] && !(started && marker == targetMarker);
-                ok = !mismatch;
-            }
-            for (uint8_t page = 0x05; ok && page <= 0x27; page++) {
-                if (removed()) { ok = false; break; }
-                started = true;
-                ok = reader.writePage(page, data + (page - 0x04) * 4);
-                if (ok) delay(2);  // bench-tested pacing between EEPROM pages
-            }
-            // Marker-last on the first attempt; retries reuse exactly the same
-            // payload, timestamp and tag index, including after a lost ACK.
-            for (uint8_t stage = 0; ok && stage < 2; stage++) {
-                if (stage == 1) {
-                    ok = !removed() && select(reader, uids[slot], "WRITE_COMMIT")
-                      && reader.writePage(0x04, data);
+        do {
+            for (uint8_t attempt = 0; attempt < 3; attempt++) {
+                if (removed()) return written;
+                const char* phase = "select";
+                bool ok = select(reader, uids[slot], "WRITE");
+                uint8_t header[16];
+                if (ok) { phase = "header"; ok = read(reader, uids[slot], 0x04, header, phase); }
+                if (ok) {
+                    uint32_t marker = (uint32_t)header[0] << 24 | (uint32_t)header[1] << 16 | (uint32_t)header[2] << 8 | header[3];
+                    // Only this session's preflighted tag may be resumed. A lost
+                    // write ACK can leave either its original or final marker.
+                    mismatch = marker != blankMarkers[slot] && !(started && marker == targetMarker);
+                    ok = !mismatch;
                 }
-                for (uint8_t offset = 0; ok && offset < sizeof(data); offset += 16) {
-                    uint8_t actual[16];
-                    uint8_t skip = stage == 0 && offset == 0 ? 4 : 0;
-                    ok = !removed() && reader.readPages16(0x04 + offset / 4, actual)
-                      && memcmp(actual + skip, data + offset + skip, 16 - skip) == 0;
+                for (uint8_t page = 0x05; ok && page <= 0x27; page++) {
+                    if (removed()) { ok = false; break; }
+                    phase = "body write";
+                    started = true;
+                    ok = reader.writePage(page, data + (page - 0x04) * 4);
+                    if (ok) delay(2);  // bench-tested pacing between EEPROM pages
                 }
+                // Marker-last on the first attempt; retries reuse exactly the same
+                // payload, timestamp and tag index, including after a lost ACK.
+                for (uint8_t stage = 0; ok && stage < 2; stage++) {
+                    if (stage == 1) {
+                        phase = "marker write";
+                        ok = !removed() && select(reader, uids[slot], "WRITE_COMMIT")
+                          && reader.writePage(0x04, data);
+                    }
+                    for (uint8_t offset = 0; ok && offset < sizeof(data); offset += 16) {
+                        uint8_t actual[16];
+                        uint8_t skip = stage == 0 && offset == 0 ? 4 : 0;
+                        phase = stage == 0 ? "body verify" : "final verify";
+                        ok = read(reader, uids[slot], 0x04 + offset / 4, actual, phase);
+                        if (ok && memcmp(actual + skip, data + offset + skip, 16 - skip)) {
+                            netLog(String(erase ? "[TAG ERASE]" : "[TAG WRITE]") + " verify mismatch offset="
+                                   + String(offset) + " uid=" + uids[slot]);
+                            ok = false;
+                        }
+                    }
+                }
+                finishRfidSession(reader);
+                if (ok) { verified = true; break; }
+                netLog(String(erase ? "[TAG ERASE]" : "[TAG WRITE]") + " attempt=" + String(attempt + 1)
+                       + " failed phase=" + phase + " uid=" + uids[slot]);
+                if (mismatch || removed()) return written;
+                delay(60);
             }
-            finishRfidSession(reader);
-            if (ok) { verified = true; break; }
-            netLog("[TAG WRITE] attempt=" + String(attempt + 1) + " failed uid=" + uids[slot]);
-            if (mismatch || removed()) return written;
-            delay(60);
-        }
+        } while (!verified && reposition(slot));
         if (!verified) {
-            netLog("[TAG WRITE] failed uid=" + uids[slot]);
+            netLog(String(erase ? "[TAG ERASE]" : "[TAG WRITE]") + " failed uid=" + uids[slot]);
             return written;
         }
         written++;
@@ -14305,9 +14439,27 @@ static bool blankLoadPresent() {
         && gBlankLoadSampleWeight >= SCAN_START_WEIGHT_G;
 }
 
+static void clearRemovedSpool() {
+    lastUID = ""; lastUID2 = ""; lastUIDHex = ""; lastUID2Hex = "";
+    lastUIDLeft = ""; lastUIDRight = ""; lastUIDTwin = "";
+    gLastManufacturer = "--"; gLastMaterial = "--"; gLastColor = "--";
+    gLastContainer = 0; gLastRackName = ""; gLastRackPosition = ""; gLastRackId = "";
+    gLastLevel = gLastPosition = -1;
+    gTwinFetchDone = gTwinFetchPending = false; gTwinFetchUID = ""; gTwinFetchResult = "";
+    gContainerFetchPending = gContainerFetchDone = false; gContainerFetchUID = "";
+    gContainerBFetchDone = false; gContainerBFetchUID = ""; gContainerBFetchResult = 0;
+    gCloudSendPending = gCloudSendDone = false;
+    gLastRfidUid1 = ""; gLastRfidUid2 = ""; gLastRfidUid1Ms = gLastRfidUid2Ms = 0;
+    gLastSentWeight = gLastCloudWeight = NAN; gCloudWeightSetMs = 0;
+    wfPhase = WF_IDLE; sendPhase = "ready"; sendCountdown = -1; gReadyWasZero = true;
+    wfContainerFetched = false; wfContainerWeight = 0;
+    wfWeightPresentSinceMs = 0;
+    rfidLockedForCurrentLoad = servoLockedUntilAutotare = servoHoldAfterRemoval = false;
+    resetSlopeBuffer(); currentOledState = OLED_STATE_IDLE;
+}
+
 static void blankLoadTick() {
     static uint32_t lastSampleMs = 0;
-    if (!gBlankLoadLatched && !gBlankTagNoticePending && !gBambuPending) { lastSampleMs = 0; gBlankEmptySinceMs = 0; gBlankLoadWasPresent = false; return; }
     // Advance only on a new physical sample. A held display value or a sensor
     // outage cannot earn the empty window; normal reader polling can take 250 ms.
     uint32_t sampleMs = gBlankLoadSampleMs;
@@ -14316,17 +14468,19 @@ static void blankLoadTick() {
     if (lastSampleMs && sampleMs - lastSampleMs > 600) gBlankEmptySinceMs = 0;
     lastSampleMs = sampleMs;
     if (gBlankLoadSampleWeight >= SCAN_START_WEIGHT_G) gBlankLoadWasPresent = true;
-    if (gBlankLoadWasPresent && gBlankLoadSampleWeight < MIN_WEIGHT_TO_SEND_G) {
+    if (gBlankLoadSampleWeight < MIN_WEIGHT_TO_SEND_G) {
         if (!gBlankEmptySinceMs) gBlankEmptySinceMs = sampleMs;
         if (sampleMs - gBlankEmptySinceMs >= 700) {
+            bool wasPresent = gBlankLoadWasPresent;
+            clearRemovedSpool();
             gBlankLoadLatched = false; gBlankLoadWasPresent = false; gBlankLoadWritten = false;
-            gBlankTagNoticePending = false; gBlankPairSinceMs = 0; gBlankEmptySinceMs = 0;
+            gBlankTagNoticePending = false; gBlankPairSinceMs = 0;
             gBlankTagUid[0] = ""; gBlankTagUid[1] = "";
             gBambuPending = false; gBambuPairSinceMs = 0; gBambuSingleChecked = "";
             gBambuReadyUid[0] = ""; gBambuReadyUid[1] = "";
-            netLog("[RFID] Blank load released; waiting for a new placement");
+            if (wasPresent) netLog("[RFID] Load released; waiting for a new placement");
             if (gBlankFlowActive) gBlankFlowRemoved = true;
-            if (LittleFS.exists(ASSIGN_META)) gAssignmentRecoveryPending = true;
+            if (wasPresent && LittleFS.exists(ASSIGN_META)) gAssignmentRecoveryPending = true;
         }
     } else gBlankEmptySinceMs = 0;
 }
@@ -14576,7 +14730,7 @@ static void inventoryPickMaterial(InventoryPicker* p) {
     }
 }
 
-static int inventoryPickSpool(std::vector<InventorySpool>& spools) {
+static int inventoryPickSpool(std::vector<InventorySpool>& spools, LangKey title = I18N_INV_TITLE) {
     InventoryPicker p; p.spools = &spools;
     lv_obj_t* prev = lv_scr_act(); lv_obj_t* scr = lv_obj_create(nullptr);
     lv_obj_set_style_bg_color(scr, LVCOL_BG, 0); lv_obj_clear_flag(scr, LV_OBJ_FLAG_SCROLLABLE);
@@ -14584,7 +14738,7 @@ static int inventoryPickSpool(std::vector<InventorySpool>& spools) {
     lvglAddHeader(scr, t(I18N_INV_EXIT), [](lv_event_t* e) {
         ((InventoryPicker*)lv_event_get_user_data(e))->exit = true;
     }, &p, 0);
-    inventoryLabel(scr, t(I18N_INV_TITLE), 170, 6, 220);
+    inventoryLabel(scr, t(title), 170, 6, 300);
     p.row = lv_obj_create(scr); lv_obj_remove_style_all(p.row);
     lv_obj_set_pos(p.row, 10, 54); lv_obj_set_size(p.row, 460, 146);
     lv_obj_set_scroll_dir(p.row, LV_DIR_HOR);
@@ -14700,9 +14854,20 @@ static bool inventoryVerifyPair(const InventoryRequest& r, bool blank) {
     return seen == 3;
 }
 
-static bool releaseInventoryTags(InventoryRequest& r, bool confirm) {
+static bool prepareInventoryRelease(InventoryRequest& r) {
     r.op = InventoryRequest::PREPARE_RELEASE;
-    if (!inventoryWait(r,I18N_INV_PREPARING,true)) return false;
+    while (!inventoryWait(r,I18N_INV_PREPARING,true)) {
+        if (r.cancel || gBlankFlowRemoved || r.error != I18N_INV_KEEP) return false;
+        int chosen = inventoryPickSpool(r.spools, I18N_INV_KEEP);
+        if (chosen < 0 || gBlankFlowRemoved) { r.cancel = true; return false; }
+        r.releaseChoice = chosen;
+        // PREPARE_RELEASE re-reads both records and validates the chosen versions.
+    }
+    return true;
+}
+
+static bool releaseInventoryTags(InventoryRequest& r, bool confirm) {
+    if (!prepareInventoryRelease(r)) return false;
     if (!r.releaseCount) return true;
     if (confirm && !lvglAskYesNo(t(I18N_INV_RELEASE_Q),r.previousLabel.c_str())) {
         r.cancel = true; LittleFS.remove(ASSIGN_RELEASE); return false;
@@ -14758,10 +14923,9 @@ static void runInventoryAssignment(bool recover) {
         if (!firebaseAuth) { lvglNotice(t(I18N_NO_ACCOUNT)); break; }
         if (recover) {
             if (!inventoryReadPending(r)) { lvglNotice(t(I18N_INV_STORAGE)); break; }
+            if (r.owner != firebaseUid) { lvglNotice(t(I18N_NO_ACCOUNT)); break; }
+            if (gInventoryAssignmentConflict) { lvglNotice(t(I18N_INV_CONFLICT)); break; }
             if (!lvglAskYesNo(t(I18N_INV_RECOVER), nullptr)) break;
-            r.op = InventoryRequest::RECONCILE;
-            if (inventoryWait(r, I18N_INV_SYNCING, false)) { assigned = true; break; }
-            if (r.error == I18N_NO_ACCOUNT) { lvglNotice(t(r.error)); break; }
             if (!inventoryVerifyPair(r, false)) {
                 if (inventoryVerifyPair(r, true) && lvglAskYesNo(t(I18N_INV_DISCARD), nullptr)) {
                     inventoryClearPending(); recover = false;
@@ -14814,16 +14978,28 @@ static void runInventoryAssignment(bool recover) {
             uint8_t written = writeInventoryTags(r.payload, r.uids);
             lv_scr_load(prev); lv_obj_del(busy);
             if (written != 2) {
-                inventoryClearPending();
+                // Retain the identities if even one tag may have changed.
+                // Erase/reset can now safely abandon this incomplete operation.
+                inventoryMarkConflict();
                 char result[192]; snprintf(result, sizeof(result), t(I18N_TAG_WRITE_RESULT), (unsigned)written, 2U);
                 String message = String(result) + "\n\n" + t(I18N_TAG_WRITE_FAILED);
-                lvglNotice(message.c_str()); break;
+                if (!gBlankFlowRemoved) lvglNotice(message.c_str());
+                break;
             }
         }
-        // No NFC writes on retry: the durable request contains the exact two
-        // verified identities and source-version precondition from preparation.
+        // Retry only the same physical pair; COMMIT re-reads inventory and
+        // rebuilds its conditional batch before sending.
         r.op = InventoryRequest::COMMIT;
-        while (!inventoryWait(r, I18N_INV_SYNCING, false)) {
+        while (true) {
+            blankFlowTick();
+            if (gBlankFlowRemoved || !blankLoadPresent() || !inventoryVerifyPair(r, false)) {
+                r.ok = false;
+                if (!gBlankFlowRemoved) lvglNotice(t(I18N_INV_UNVERIFIED));
+                break;
+            }
+            if (inventoryWait(r, I18N_INV_SYNCING, false)) break;
+            if (gInventoryAssignmentConflict) { lvglNotice(t(I18N_INV_CONFLICT)); break; }
+            if (gBlankFlowRemoved || r.error == I18N_NO_ACCOUNT) break;
             if (!lvglAskYesNo(t(I18N_INV_RETRY), t(r.error))) break;
         }
         if (r.ok) {
@@ -14924,24 +15100,44 @@ static bool detectedTagPairBlank() {
         && gBlankTagUid[0] == gReaderTagUid[0] && gBlankTagUid[1] == gReaderTagUid[1];
 }
 
+static bool eraseTagsAvailable() {
+    bool finished = wfPhase == WF_DONE || (wfPhase == WF_IDLE
+        && ((gBlankLoadLatched && !gBlankLoadWritten) || gInventoryAssignmentPending
+            || (currentOledState == OLED_STATE_NO_TAG && lastUID.isEmpty() && lastUID2.isEmpty())));
+    if (!finished || gBlankFlowActive || gContainerFetchPending || gTwinFetchPending
+        || gCloudSendPending || gInventoryRequest) return false;
+    return gReaderTagState[0] && gReaderTagState[1]
+                 && gReaderTagUid[0].length() && gReaderTagUid[1].length()
+                 && gReaderTagUid[0] != gReaderTagUid[1]
+                 && (!detectedTagPairBlank() || gInventoryAssignmentPending)
+                 && gBambuTags[0].uid.isEmpty() && gBambuTags[1].uid.isEmpty();
+}
+
 static void runEraseTags() {
-    if (gInventoryAssignmentPending || LittleFS.exists(ASSIGN_META)) {
-        lvglNotice(t(I18N_INV_RECOVER)); return;
-    }
+    if (!eraseTagsAvailable()) return;
+    bool pending = gInventoryAssignmentPending || LittleFS.exists(ASSIGN_META);
     String uids[2] = {gReaderTagUid[0], gReaderTagUid[1]};
     if (uids[0].isEmpty() || uids[1].isEmpty() || uids[0] == uids[1]) {
         lvglNotice(t(I18N_WAIT_TWO_TAGS)); return;
     }
-    if (detectedTagPairBlank()) return;
-    if (!lvglAskYesNo(t(I18N_ERASE_Q), nullptr)) return;
+    if (pending) {
+        InventoryRequest saved;
+        if (!inventoryReadPending(saved)) { lvglNotice(t(I18N_INV_STORAGE)); return; }
+        if (saved.owner != firebaseUid) { lvglNotice(t(I18N_NO_ACCOUNT)); return; }
+        if (!((uids[0] == saved.uids[0] && uids[1] == saved.uids[1])
+            || (uids[0] == saved.uids[1] && uids[1] == saved.uids[0]))) {
+            lvglNotice(t(I18N_INV_UNVERIFIED)); return;
+        }
+    }
+    if (!pending && detectedTagPairBlank()) return;
+    if (!lvglAskYesNo(t(pending ? I18N_INV_RESET : I18N_ERASE_Q), nullptr)) return;
     gBlankFlowRemoved = false;
     bool livePaused = gLivePaused; gLivePaused = true;
     // Prepare the conditional inventory release before changing either tag.
     // Offline/auth/conflict failures must leave the written pair intact.
     InventoryRequest release;
     release.uids[0] = uids[0]; release.uids[1] = uids[1];
-    release.op = InventoryRequest::PREPARE_RELEASE;
-    if (!inventoryWait(release, I18N_INV_PREPARING, true)) {
+    if (!prepareInventoryRelease(release)) {
         if (!release.cancel) lvglNotice(t(release.error));
         gLivePaused = livePaused; gBlankFlowActive = false;
         return;
@@ -14959,11 +15155,12 @@ static void runEraseTags() {
     uint8_t empty[144] = {0x03, 0x00, 0xFE, 0x00};
     uint8_t erased = writeInventoryTags(empty, uids, true);
     lv_scr_load(prev); lv_obj_del(busy);
+    bool released = !release.releaseCount;
     if (erased == 2 && release.releaseCount) {
         // Both physical records were verified blank. Preserve the spool as
         // untagged and remove both UID assignments in the prepared atomic batch.
         release.op = InventoryRequest::RELEASE;
-        bool released = inventoryWait(release, I18N_INV_SYNCING, false);
+        released = inventoryWait(release, I18N_INV_SYNCING, false);
         while (!released && lvglAskYesNo(t(I18N_INV_RELEASE_Q), t(I18N_ERASE_SYNC_FAILED))) {
             released = releaseInventoryTags(release, false);
         }
@@ -14972,6 +15169,7 @@ static void runEraseTags() {
     } else {
         LittleFS.remove(ASSIGN_RELEASE);
     }
+    if (pending && erased == 2 && released) inventoryClearPending();
     for (int slot = 0; slot < 2; slot++) {
         gMetaCache.erase(uids[slot]);
         Preferences cache;
@@ -15214,6 +15412,15 @@ static bool isUidLatched(const String& uid, const String& latchedUid, uint32_t n
     if (uid.length() == 0 || latchedUid.length() == 0 || uid != latchedUid) return false;
     if (noUidSinceMs == 0) return true;
     return (millis() - noUidSinceMs) < releaseMs;
+}
+
+static bool acceptRfidUid(const String& uid, String& remembered, uint32_t& seenMs, uint32_t noUidSinceMs) {
+    if (uid.isEmpty()) return false;
+    readWeight();  // NFC selection/header reads may outlast the previous weight sample.
+    if (!blankLoadPresent() || uid == lastUID || uid == lastUID2
+        || isDuplicateRecentUid(uid, remembered, seenMs) || isUidLatched(uid, remembered, noUidSinceMs)) return false;
+    remembered = uid; seenMs = millis();
+    return true;
 }
 
 static bool isLikelyTigerTagUidHex(const String& uidHex) {
@@ -16591,11 +16798,7 @@ static void lvglUpdateMainScreen(float weight, const String& uid, OledState stat
     lv_label_set_text(lvFilamentLabel, t(I18N_FILAMENT));
     lv_label_set_text(lvTareCaption, t(I18N_ZERO_SCALE));
     lv_label_set_text(lvEraseCaption, t(I18N_ERASE_TAG));
-    bool canErase = gReaderTagState[0] && gReaderTagState[1]
-                 && gReaderTagUid[0].length() && gReaderTagUid[1].length()
-                 && gReaderTagUid[0] != gReaderTagUid[1]
-                 && !detectedTagPairBlank() && gBambuTags[0].uid.isEmpty() && gBambuTags[1].uid.isEmpty()
-                 && !gInventoryAssignmentPending && wfPhase != WF_SENDING;
+    bool canErase = eraseTagsAvailable();
     if (canErase) lv_obj_clear_state(lvEraseBtn, LV_STATE_DISABLED);
     else lv_obj_add_state(lvEraseBtn, LV_STATE_DISABLED);
     lv_label_set_text(lvSettingsCaption, t(I18N_SETTINGS));
@@ -16623,6 +16826,11 @@ static void lvglUpdateMainScreen(float weight, const String& uid, OledState stat
         lv_obj_set_style_bg_color(lvBadgeBox, LVCOL_RED, 0);
         lv_obj_set_style_text_color(lvTopLeftLabel, LVCOL_TEXT, 0);
         lv_label_set_text(lvTopLeftLabel, t(I18N_ZERO_REQUIRED));
+    } else if (gInventoryAssignmentConflict) {
+        lv_obj_set_style_bg_opa(lvBadgeBox, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_color(lvBadgeBox, LVCOL_RED, 0);
+        lv_obj_set_style_text_color(lvTopLeftLabel, LVCOL_TEXT, 0);
+        lv_label_set_text(lvTopLeftLabel, t(I18N_INV_CONFLICT));
     } else if (blankSession) {
         lv_obj_set_style_bg_opa(lvBadgeBox, LV_OPA_COVER, 0);
         lv_obj_set_style_bg_color(lvBadgeBox, LVCOL_ORANGE, 0);
@@ -16654,7 +16862,7 @@ static void lvglUpdateMainScreen(float weight, const String& uid, OledState stat
                 statusFg = LVCOL_TEXT; break;
             case OLED_STATE_WEIGHING:
             case OLED_STATE_UID_DETECTED:
-                statusLbl = t(I18N_WEIGHING); statusBg = LVCOL_ACCENT; statusFg = LVCOL_TEXT; break;
+                statusLbl = t(weighProgressLabel()); statusBg = LVCOL_ACCENT; statusFg = LVCOL_TEXT; break;
             case OLED_STATE_SENDING:
                 statusLbl = t(I18N_SENDING); statusBg = LVCOL_ACCENT; statusFg = LVCOL_TEXT; break;
             case OLED_STATE_SUCCESS:
@@ -18209,7 +18417,8 @@ void loop() {
                 }
             }
 
-            if (uid1Hex.length() > 0) {
+            if (uid1Hex.length() || uid2Hex.length()) readWeight();
+            if (uid1Hex.length() > 0 && blankLoadPresent()) {
                 gRfidReadOkCount++;
                 gLastActivityMs = millis(); // RFID activity resets screensaver timer
                 lastUIDRight = uid1Hex;
@@ -18226,7 +18435,7 @@ void loop() {
                 Serial.println("[RFID] UID1: " + uid1Hex);
                 pushSessionEvent("rfid_right", "uid=" + uid1Hex, currentWeight);
                 gNextRfidPollMs = millis() + 1200;
-            } else if (uid2Hex.length() > 0) {
+            } else if (uid2Hex.length() > 0 && blankLoadPresent()) {
                 gRfidReadOkCount++;
                 gLastActivityMs = millis(); // RFID activity resets screensaver timer
                 lastUIDLeft = uid2Hex;
@@ -18323,26 +18532,16 @@ void loop() {
         } else {
             gLastRfidNoUid2Ms = 0;
         }
-        if (uid1Hex.length() > 0 || uid2Hex.length() > 0) {
-            gNextRfidPollMs = millis() + 1200;
-        }
-
         bool dupUid1 = isDuplicateRecentUid(uid1Hex, gLastRfidUid1, gLastRfidUid1Ms);
         bool dupUid2 = isDuplicateRecentUid(uid2Hex, gLastRfidUid2, gLastRfidUid2Ms);
         bool latchedUid1 = isUidLatched(uid1Hex, gLastRfidUid1, prevNoUid1Ms);
         bool latchedUid2 = isUidLatched(uid2Hex, gLastRfidUid2, prevNoUid2Ms);
-        if (uid1Hex.length() > 0 && !dupUid1) {
-            gLastRfidUid1 = uid1Hex;
-            gLastRfidUid1Ms = millis();
+        bool newUid1 = acceptRfidUid(uid1Hex, gLastRfidUid1, gLastRfidUid1Ms, prevNoUid1Ms);
+        bool newUid2 = acceptRfidUid(uid2Hex, gLastRfidUid2, gLastRfidUid2Ms, prevNoUid2Ms);
+        if (newUid1 || newUid2 || (uid1Hex.length() && (uid1Hex == lastUID || uid1Hex == lastUID2))
+            || (uid2Hex.length() && (uid2Hex == lastUID || uid2Hex == lastUID2))) {
+            gNextRfidPollMs = millis() + 1200;
         }
-        if (uid2Hex.length() > 0 && !dupUid2) {
-            gLastRfidUid2 = uid2Hex;
-            gLastRfidUid2Ms = millis();
-        }
-
-        // --- Step 2: store new UIDs ---
-        bool newUid1 = uid1Hex.length() > 0 && !dupUid1 && !latchedUid1 && uid1Hex != lastUID && uid1Hex != lastUID2;
-        bool newUid2 = uid2Hex.length() > 0 && !dupUid2 && !latchedUid2 && uid2Hex != lastUID && uid2Hex != lastUID2;
 
         if (uid1Hex.length() > 0 && !newUid1) {
             RFID_DEBUG_PRINTF("[RFID DBG] RIGHT suppressed dup=%d latched=%d same1=%d same2=%d lastUID=%s lastUID2=%s\n",
@@ -18367,6 +18566,12 @@ void loop() {
 
         if (newUid1) {
             gRfidReadOkCount++;
+            if (lastUID.length() == 0) {
+                lastUID = uid1Hex; lastUIDHex = uid1Hex;
+                if (firstUidDetectedMs == 0) firstUidDetectedMs = millis();
+            } else {
+                lastUID2 = uid1Hex; lastUID2Hex = uid1Hex;
+            }
             readTigerTagMetadata(rfid1, uid1Hex);
             // If right reader failed metadata, try fresh poll on left reader for twin chip
             if (gLastManufacturer == "--" && gLastMaterial == "--" && gRfid2Present) {
@@ -18379,12 +18584,6 @@ void loop() {
                 } else {
                     Serial.println("[META] Left reader found no card in field");
                 }
-            }
-            if (lastUID.length() == 0) {
-                lastUID = uid1Hex; lastUIDHex = uid1Hex;
-                if (firstUidDetectedMs == 0) firstUidDetectedMs = millis();
-            } else {
-                lastUID2 = uid1Hex; lastUID2Hex = uid1Hex;
             }
             currentOledState = OLED_STATE_UID_DETECTED;
             oledStateChangeMs = millis();
@@ -18399,6 +18598,13 @@ void loop() {
 
         if (newUid2) {
             gRfidReadOkCount++;
+            if (lastUID.length() == 0) {
+                lastUID = uid2Hex; lastUIDHex = uid2Hex;
+                lastUID2 = ""; lastUID2Hex = "";
+                if (firstUidDetectedMs == 0) firstUidDetectedMs = millis();
+            } else {
+                lastUID2 = uid2Hex; lastUID2Hex = uid2Hex;
+            }
             readTigerTagMetadata(rfid2, uid2Hex);
             // If left reader failed metadata, try right reader as fallback.
             // After finishRfidSession the card is HALTed — rfid1 can still
@@ -18416,13 +18622,6 @@ void loop() {
                 } else {
                     Serial.println("[META] Right reader found no card in field");
                 }
-            }
-            if (lastUID.length() == 0) {
-                lastUID = uid2Hex; lastUIDHex = uid2Hex;
-                lastUID2 = ""; lastUID2Hex = "";
-                if (firstUidDetectedMs == 0) firstUidDetectedMs = millis();
-            } else {
-                lastUID2 = uid2Hex; lastUID2Hex = uid2Hex;
             }
             currentOledState = OLED_STATE_UID_DETECTED;
             oledStateChangeMs = millis();
@@ -18446,11 +18645,20 @@ void loop() {
     if (gBlankTagNoticePending || gBambuPending || (gBlankLoadLatched && !gBlankLoadWritten) || gInventoryAssignmentPending) blankFlowTick();
     else blankLoadTick();
     static bool assignmentChecked = false;
-    if (!assignmentChecked) { gInventoryAssignmentPending = LittleFS.exists(ASSIGN_META); assignmentChecked = true; }
-    if (!gZeroRequired && gAssignmentRecoveryPending && lvglReady && gBackgroundTasksStarted && firebaseAuth
+    if (!assignmentChecked) {
+        gInventoryAssignmentPending = LittleFS.exists(ASSIGN_META);
+        if (gInventoryAssignmentPending) { InventoryRequest saved; if (!inventoryReadPending(saved)) gInventoryAssignmentConflict = true; }
+        assignmentChecked = true;
+    }
+    if (!gZeroRequired && !gInventoryAssignmentConflict && gAssignmentRecoveryPending && lvglReady && gBackgroundTasksStarted && firebaseAuth
         && blankLoadPresent() && !gBlankLoadLatched) {
-        gAssignmentRecoveryPending = false;
-        if (LittleFS.exists("/tag-assignment.json")) runInventoryAssignment(true);
+        InventoryRequest saved;
+        if (!LittleFS.exists(ASSIGN_META)) gAssignmentRecoveryPending = false;
+        else if (inventoryReadPending(saved)
+            && ((gReaderTagUid[0] == saved.uids[0] && gReaderTagUid[1] == saved.uids[1])
+                || (gReaderTagUid[0] == saved.uids[1] && gReaderTagUid[1] == saved.uids[0]))) {
+            gAssignmentRecoveryPending = false; runInventoryAssignment(true);
+        }
     }
     if (!gZeroRequired && gBambuPending && !gBlankLoadLatched && lvglReady && gBackgroundTasksStarted && !gInventoryAssignmentPending) {
         uint32_t now = millis();
@@ -18463,7 +18671,7 @@ void loop() {
         if (gBambuPairSinceMs && ((pair && now - gBambuPairSinceMs >= 1000)
             || (!pair && single != gBambuSingleChecked && now - gBambuPairSinceMs >= 3000))) runBambuImport();
     }
-    if (!gZeroRequired && gBlankTagNoticePending && !gBlankLoadLatched && lvglReady) {
+    if (!gZeroRequired && !gInventoryAssignmentConflict && !gInventoryAssignmentPending && gBlankTagNoticePending && !gBlankLoadLatched && lvglReady) {
         uint8_t blankTagCount = gBlankTagUid[0].length() > 0 ? 1 : 0;
         if (gBlankTagUid[1].length() > 0 && gBlankTagUid[1] != gBlankTagUid[0]) blankTagCount++;
         uint32_t now = millis();
@@ -18573,12 +18781,11 @@ void loop() {
         if (sendPhase == "countdown" && currentOledState != OLED_STATE_SENDING) {
             currentOledState = OLED_STATE_SENDING; oledStateChangeMs = now;
         }
-        // The badge says "Weighing..." from the moment a session opens — the
-        // 4-6 s where it used to sit on "Ready" were the workflow's biggest
-        // silence. Only an upgrade from IDLE: UID_DETECTED and later states
-        // must not be stomped.
+        // Progress text follows the workflow: tag checking, inventory lookup,
+        // then weighing. A rescan also replaces the previous no-tag banner;
+        // UID_DETECTED and outcome states must not be stomped.
         if ((sendPhase == "scanning" || sendPhase == "stabilizing") &&
-            currentOledState == OLED_STATE_IDLE) {
+            (currentOledState == OLED_STATE_IDLE || currentOledState == OLED_STATE_NO_TAG)) {
             currentOledState = OLED_STATE_WEIGHING; oledStateChangeMs = now;
         }
         if (currentOledState == OLED_STATE_WEIGHING &&

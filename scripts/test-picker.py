@@ -25,7 +25,9 @@ funcs=''.join(m.extract(x) for x in ['static lv_obj_t* lvglAddHeader(', 'static 
 funcs=funcs.replace('    while (!p.exit && !gBlankFlowRemoved) {','    testPicker(&p); p.exit=pickerMode != 1;\n    while (!p.exit && !gBlankFlowRemoved) {')
 funcs=funcs.replace('        while (selection.index < 0 && !selection.exit && !gBlankFlowRemoved) {','        testContainerScreen();\n        while (selection.index < 0 && !selection.exit && !gBlankFlowRemoved) {')
 funcs=funcs.replace('    while (!exit && chosen < 0 && !gBlankFlowRemoved) {','    testMaterialScreen();\n    while (!exit && chosen < 0 && !gBlankFlowRemoved) {')
-keys=sorted(set(re.findall(r'I18N_[A-Z_]+',funcs)))
+dialog=m.extract('static bool lvglAskYesNo(').replace('static bool lvglAskYesNo(', 'static bool testAskYesNo(').replace('    while (sAnswer < 0) {', '    testRetryDialog(card);\n    while (sAnswer < 0) {')
+funcs+=dialog
+keys=sorted(set(re.findall(r'I18N_[A-Z_]+',funcs+' I18N_WIFI_RETRY I18N_CANCEL')))
 shim=r'''
 #include <lvgl.h>
 #include <algorithm>
@@ -34,6 +36,7 @@ shim=r'''
 #include <cstring>
 #include <string>
 #include <vector>
+#include <map>
 class String:public std::string{public:String(){}using std::string::string;String(const std::string& s):std::string(s){}String(float n,int){char b[40];snprintf(b,sizeof(b),"%.0f",n);assign(b);}bool isEmpty()const{return empty();}bool equalsIgnoreCase(const String& s)const{return strcasecmp(c_str(),s.c_str())==0;}};
 const lv_font_t&gFont14=lv_font_montserrat_14;
 const lv_font_t&gFont20=lv_font_montserrat_20;
@@ -41,6 +44,8 @@ const lv_font_t&gFont20=lv_font_montserrat_20;
 #define LVCOL_TEXT lv_color_white()
 #define LVCOL_ACCENT lv_color_hex(0x2196F3)
 #define LVCOL_BORDER lv_color_hex(0x273442)
+#define LVCOL_GREEN lv_color_hex(0x22CC66)
+#define LVCOL_MUTED lv_color_hex(0x8899AA)
 #define LVCOL_CARD lv_color_hex(0x101820)
 bool gBlankFlowRemoved=false;
 bool gBlankFlowActive=false,gBlankLoadLatched=false,gBlankLoadWasPresent=false;
@@ -48,7 +53,10 @@ uint32_t gBlankEmptySinceMs=0;
 int containerMode=0,containerSaves=0,containerScreens=0,containerNotices=0;
 bool containerKnown=false,containerFailure=false;
 int pickerMode=0,pickerTicks=0,confirmationDialogs=0;
-const char* t(int){return "Label";}
+int pickerTarget=0;bool pickerTitleCheck=false;
+std::map<int,const char*> uiTexts;
+const char* t(int key){return key==999?"Which entry should be kept?":uiTexts.count(key)?uiTexts[key]:"Label";}
+void testRetryDialog(lv_obj_t*);int dialogAction=0;
 using LangKey=int;
 struct SpoolContainer{String id,label,type;uint16_t brand=0;float weight=0;};
 struct InventoryRequest{enum{LIST,CONTAINERS,SET_CONTAINER}op=LIST;std::vector<SpoolContainer> containers;String containerId;float containerWeight=0;int error=0;bool done=false,cancel=false,ok=false;};
@@ -75,6 +83,15 @@ void touch(int x,int y){touchPoint={x,y};pressed=true;pump(5);pressed=false;pump
 tail=r'''
 static int checks=0;
 #define CHECK(x) do{if(!(x)){printf("FAIL line %d: %s\n",__LINE__,#x);exit(1);}checks++;}while(0)
+void testRetryDialog(lv_obj_t* card){
+ lv_obj_update_layout(card);lv_area_t bounds;lv_obj_get_coords(card,&bounds);
+ CHECK(bounds.y1>=0&&bounds.y2<320&&lv_obj_get_height(card)<=320);
+ lv_obj_t* retry=lv_obj_get_child(card,-2);lv_obj_t* cancel=lv_obj_get_child(card,-1);
+ CHECK(!strcmp(lv_label_get_text(lv_obj_get_child(retry,0)),t(I18N_WIFI_RETRY)));
+ CHECK(!strcmp(lv_label_get_text(lv_obj_get_child(cancel,0)),t(I18N_CANCEL)));
+ if(dialogAction==2)gBlankFlowRemoved=true;
+ else lv_event_send(dialogAction==0?retry:cancel,LV_EVENT_CLICKED,nullptr);
+}
 void testMaterialScreen(){
  pump();lv_obj_t* list=lv_obj_get_child(lv_scr_act(),-1);
  CHECK(lv_obj_get_child_cnt(list)==3);
@@ -93,8 +110,9 @@ void testContainerScreen(){
 void testPicker(InventoryPicker* p){
  if(pickerMode){
   pump();
-  for(int i=0;i<5;i++)if(p->indices[i]==0)lv_event_send(p->cards[i],LV_EVENT_CLICKED,nullptr);
-  CHECK(p->selected==0&&!p->choose);
+  if(pickerTitleCheck){bool found=false;for(uint32_t i=0;i<lv_obj_get_child_cnt(lv_scr_act());i++){auto o=lv_obj_get_child(lv_scr_act(),i);if(lv_obj_check_type(o,&lv_label_class)&&!strcmp(lv_label_get_text(o),t(999)))found=true;}CHECK(found);}
+  for(int i=0;i<5;i++)if(p->indices[i]==pickerTarget)lv_event_send(p->cards[i],LV_EVENT_CLICKED,nullptr);
+  CHECK(p->selected==pickerTarget&&!p->choose);
   if(pickerMode==1){lv_event_send(p->accept,LV_EVENT_CLICKED,nullptr);CHECK(p->choose);}
   return;
  }
@@ -155,7 +173,10 @@ int main(){lv_init();static lv_color_t pixels[480*40];static lv_disp_draw_buf_t 
  // Confirm returns the selected spool directly; Exit still returns no selection.
  pickerMode=1;CHECK(inventoryPickSpool(spools)==0);CHECK(confirmationDialogs==0);
  gBlankFlowRemoved=false;pickerMode=2;CHECK(inventoryPickSpool(spools)==-1);CHECK(confirmationDialogs==0);
- pickerMode=0;gBlankFlowRemoved=false;
+ std::vector<InventorySpool> choices(spools.begin(),spools.begin()+2);pickerTarget=1;pickerTitleCheck=true;
+ gBlankFlowRemoved=false;pickerMode=1;CHECK(inventoryPickSpool(choices,999)==1);CHECK(confirmationDialogs==0);
+ gBlankFlowRemoved=false;pickerMode=2;CHECK(inventoryPickSpool(choices,999)==-1);CHECK(confirmationDialogs==0);
+ pickerTarget=0;pickerTitleCheck=false;pickerMode=0;gBlankFlowRemoved=false;
  InventoryRequest chooseBox;CHECK(selectSpoolContainer(chooseBox,true));CHECK(chooseBox.containerId=="box0"&&chooseBox.containerWeight==200&&containerSaves==1);CHECK(!gBlankFlowActive&&!gBlankLoadLatched);
  containerMode=2;InventoryRequest exitBox;CHECK(!selectSpoolContainer(exitBox,true));CHECK(containerSaves==1&&exitBox.containerId.empty()&&!gBlankFlowActive&&!gBlankLoadLatched);
  containerMode=3;InventoryRequest removedBox;CHECK(!selectSpoolContainer(removedBox,true));CHECK(containerSaves==1&&gBlankFlowRemoved&&!gBlankFlowActive);
@@ -163,10 +184,23 @@ int main(){lv_init();static lv_color_t pixels[480*40];static lv_disp_draw_buf_t 
  InventoryRequest knownBox;int screens=containerScreens;CHECK(selectSpoolContainer(knownBox,true));CHECK(containerScreens==screens&&containerSaves==1&&knownBox.containerId=="known");
  containerKnown=false;containerFailure=true;InventoryRequest failedBox;CHECK(!selectSpoolContainer(failedBox,true));CHECK(containerNotices==1&&containerSaves==1&&!gBlankFlowActive&&!gBlankLoadLatched);
  containerFailure=false;containerMode=0;gBlankFlowActive=gBlankLoadLatched=true;InventoryRequest deferredBox;CHECK(selectSpoolContainer(deferredBox,false));CHECK(deferredBox.containerId=="box0"&&containerSaves==1&&gBlankFlowActive&&gBlankLoadLatched);
+ // Real modal labels, bounds, retry/cancel and removal behavior.
+ gBlankFlowActive=false;gBlankFlowRemoved=false;
+ for(const auto& row:retryTranslations){
+  uiTexts[I18N_WIFI_RETRY]=row[2];uiTexts[I18N_CANCEL]=row[3];
+  dialogAction=0;CHECK(testAskYesNo(row[0],nullptr,I18N_WIFI_RETRY,I18N_CANCEL));
+  dialogAction=1;CHECK(!testAskYesNo(row[1],nullptr,I18N_WIFI_RETRY,I18N_CANCEL));
+ }
+ dialogAction=2;gBlankFlowActive=true;
+ CHECK(!testAskYesNo(retryTranslations[0][0],nullptr,I18N_WIFI_RETRY,I18N_CANCEL));
  printf("PASS: %d native LVGL picker checks (1000 spools)\n",checks);
 }
 '''
-src=OUT/'picker.cpp';src.write_text(shim+'enum {'+','.join(keys)+'};\n'+funcs+tail,encoding='utf-8')
+translations=(ROOT/'TigerTagSplashESP32/i18n.h').read_text(encoding='utf-8')
+columns=[re.findall(r'/\* '+key+r'\s*\*/ ("(?:[^"\\]|\\.)*")',translations) for key in ['TAG_MOVE_LEFT','TAG_MOVE_RIGHT','WIFI_RETRY','CANCEL']]
+assert all(len(c)==11 for c in columns)
+fixtures='const char* retryTranslations[11][4]={'+','.join('{'+','.join(row)+'}' for row in zip(*columns))+'};\n'
+src=OUT/'picker.cpp';src.write_text(shim+fixtures+'enum {'+','.join(keys)+'};\n'+funcs+tail,encoding='utf-8')
 exe=OUT/('picker.exe' if os.name=='nt' else 'picker');subprocess.run([CXX,'-std=c++11',*(['-static'] if os.name=='nt' else []),*flags,str(src),*[str(x) for x in objs],'-o',str(exe)],env=env,check=True)
 result=subprocess.run([str(exe)],env=env)
 raise SystemExit(result.returncode)
