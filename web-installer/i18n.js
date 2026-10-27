@@ -15,6 +15,8 @@
 window.I18N = {
 
 en: {
+  fork_notice: "Community fork firmware, not the official release.",
+  jc_wiring: "Guition board — different wiring; see this guide.",
   lang_name: "English",
   h1_install: "Make & Install",
   tagline: "Buy the parts, wire them up, then plug the board into your computer and press one button. Nothing to install on your computer.",
@@ -45,12 +47,12 @@ en: {
   s2_note: "Your browser talks to the board directly. No file is sent anywhere.",
   s2_help: "A small window will list the serial ports on your computer. Choose the one that appeared when you plugged the board in, then confirm.",
   unsup_t: "This browser cannot flash a board",
-  unsup_b_html: 'Flashing needs Web Serial, which only <b>Chrome</b>, <b>Edge</b> and <b>Opera</b> on a computer provide. Safari and Firefox do not have it, and no phone browser does. You can also flash from a terminal — see the <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">installation guide</a>.',
+  unsup_b_html: 'Flashing needs Web Serial, which only <b>Chrome</b>, <b>Edge</b> and <b>Opera</b> on a computer provide. Safari and Firefox do not have it, and no phone browser does. You can also flash from a terminal — see the <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">installation guide</a>.',
   erase_t: "The first install wipes the board",
   erase_b: "It erases everything on it, including any saved WiFi password, and writes the bootloader, the partition table, the firmware and the web interface. That is what you want on a board you have just built.",
   erase_u_html: 'To update a scale that already works, use <b>Settings &rarr; Update</b> on its own screen. That keeps your settings.',
   noport_t: "No COM port detected?",
-  noport_b_html: 'A driver may be missing for your system. Follow the <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">driver installation guide</a>.',
+  noport_b_html: 'A driver may be missing for your system. Follow the <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">driver installation guide</a>.',
 
   s3_title: "Once it is done",
   a1_html: "The scale starts up and asks for <b>WiFi</b>. Choose your network on the touchscreen.",
@@ -58,7 +60,7 @@ en: {
   a3_html: "Run <b>Settings &rarr; Calibration</b> with an object whose weight you know.",
   a4: "Put a tagged spool on the platform. It identifies itself.",
   trouble_t: "No reader detected?",
-  trouble_b_html: "The readers talk to the board over UART, and that is the only wiring the published firmware supports. Check that both switches on each PN532 module are set to OFF, and that each module’s TX goes to the board’s RX rather than to its TX. Everything else is in the <a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">troubleshooting guide</a>.",
+  trouble_b_html: "The readers talk to the board over UART, and that is the only wiring the published firmware supports. Check that both switches on each PN532 module are set to OFF, and that each module’s TX goes to the board’s RX rather than to its TX. Everything else is in the <a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">troubleshooting guide</a>.",
 
   cart_stl: "Download the printable enclosure (3MF)",
   f_source: "Source", f_wiring: "Wiring", f_enclosure: "Enclosure",
@@ -84,6 +86,8 @@ en: {
 },
 
 fr: {
+  fork_notice: "Micrologiciel communautaire dérivé, pas la version officielle.",
+  jc_wiring: "Carte Guition — câblage différent ; consultez ce guide.",
   lang_name: "Français",
   h1_install: "Fabriquer et installer",
   tagline: "Achetez les pièces, câblez-les, puis branchez la carte sur votre ordinateur et cliquez sur un bouton. Rien à installer sur votre ordinateur.",
@@ -114,12 +118,12 @@ fr: {
   s2_note: "Votre navigateur parle directement à la carte. Aucun fichier n'est envoyé nulle part.",
   s2_help: "Une petite fenêtre listera les ports série de votre ordinateur. Choisissez celui apparu au branchement de la carte, puis validez.",
   unsup_t: "Ce navigateur ne peut pas programmer une carte",
-  unsup_b_html: "La programmation utilise Web Serial, que seuls <b>Chrome</b>, <b>Edge</b> et <b>Opera</b> sur ordinateur proposent. Safari et Firefox ne l'ont pas, aucun navigateur de téléphone non plus. Vous pouvez aussi passer par un terminal — voir le <a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md\">guide d'installation</a>.",
+  unsup_b_html: "La programmation utilise Web Serial, que seuls <b>Chrome</b>, <b>Edge</b> et <b>Opera</b> sur ordinateur proposent. Safari et Firefox ne l'ont pas, aucun navigateur de téléphone non plus. Vous pouvez aussi passer par un terminal — voir le <a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md\">guide d'installation</a>.",
   erase_t: "La première installation efface la carte",
   erase_b: "Elle efface tout, y compris un mot de passe WiFi enregistré, et écrit le bootloader, la table de partitions, le micrologiciel et l'interface web. C'est bien ce que l'on veut sur une carte qu'on vient de monter.",
   erase_u_html: "Pour mettre à jour une balance qui fonctionne déjà, utilisez <b>Réglages &rarr; Mise à jour</b> sur son écran. Vos réglages sont conservés.",
   noport_t: "Aucun port COM détecté ?",
-  noport_b_html: 'Il manque peut-être un pilote pour votre système. Suivez le <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">guide d\'installation du pilote</a>.',
+  noport_b_html: 'Il manque peut-être un pilote pour votre système. Suivez le <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">guide d\'installation du pilote</a>.',
 
   s3_title: "Une fois terminé",
   a1_html: "La balance démarre et demande le <b>WiFi</b>. Choisissez votre réseau sur l'écran tactile.",
@@ -127,7 +131,7 @@ fr: {
   a3_html: "Lancez <b>Réglages &rarr; Calibration</b> avec un objet dont vous connaissez le poids.",
   a4: "Posez une bobine taguée sur le plateau. Elle s'identifie toute seule.",
   trouble_t: "Aucun lecteur détecté ?",
-  trouble_b_html: "Les lecteurs parlent à la carte en UART, et c’est le seul câblage que le micrologiciel publié prend en charge. Vérifiez que les deux interrupteurs de chaque module PN532 sont sur OFF, et que le TX de chaque module va bien sur le RX de la carte et non sur son TX. Tout le reste est dans le <a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">guide de dépannage</a>.",
+  trouble_b_html: "Les lecteurs parlent à la carte en UART, et c’est le seul câblage que le micrologiciel publié prend en charge. Vérifiez que les deux interrupteurs de chaque module PN532 sont sur OFF, et que le TX de chaque module va bien sur le RX de la carte et non sur son TX. Tout le reste est dans le <a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">guide de dépannage</a>.",
 
   cart_stl: "Télécharger le boîtier à imprimer (3MF)",
   f_source: "Sources", f_wiring: "Câblage", f_enclosure: "Boîtier",
@@ -153,6 +157,8 @@ fr: {
 },
 
 de: {
+  fork_notice: "Firmware eines Community-Forks, nicht die offizielle Version.",
+  jc_wiring: "Guition-Platine — andere Verkabelung; siehe diese Anleitung.",
   lang_name: "Deutsch",
   h1_install: "Bauen & installieren",
   tagline: "Teile kaufen, verkabeln, dann die Platine an den Computer anschließen und eine Schaltfläche drücken. Auf Ihrem Computer muss nichts installiert werden.",
@@ -183,12 +189,12 @@ de: {
   s2_note: "Ihr Browser spricht direkt mit der Platine. Es wird keine Datei irgendwohin gesendet.",
   s2_help: "Ein kleines Fenster listet die seriellen Schnittstellen Ihres Computers auf. Wählen Sie die, die beim Anschließen erschienen ist, und bestätigen Sie.",
   unsup_t: "Dieser Browser kann keine Platine flashen",
-  unsup_b_html: 'Das Flashen benötigt Web Serial, das nur <b>Chrome</b>, <b>Edge</b> und <b>Opera</b> auf dem Computer bieten. Safari und Firefox haben es nicht, kein Handy-Browser ebenfalls. Sie können auch über ein Terminal flashen — siehe die <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">Installationsanleitung</a>.',
+  unsup_b_html: 'Das Flashen benötigt Web Serial, das nur <b>Chrome</b>, <b>Edge</b> und <b>Opera</b> auf dem Computer bieten. Safari und Firefox haben es nicht, kein Handy-Browser ebenfalls. Sie können auch über ein Terminal flashen — siehe die <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">Installationsanleitung</a>.',
   erase_t: "Die erste Installation löscht die Platine",
   erase_b: "Sie löscht alles, auch ein gespeichertes WLAN-Passwort, und schreibt Bootloader, Partitionstabelle, Firmware und Weboberfläche. Genau das will man auf einer frisch aufgebauten Platine.",
   erase_u_html: 'Um eine bereits laufende Waage zu aktualisieren, nutzen Sie <b>Einstellungen &rarr; Update</b> auf ihrem Bildschirm. Ihre Einstellungen bleiben erhalten.',
   noport_t: "Kein COM-Port erkannt?",
-  noport_b_html: 'Möglicherweise fehlt ein Treiber für Ihr System. Folgen Sie der <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">Anleitung zur Treiberinstallation</a>.',
+  noport_b_html: 'Möglicherweise fehlt ein Treiber für Ihr System. Folgen Sie der <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">Anleitung zur Treiberinstallation</a>.',
 
   s3_title: "Wenn es fertig ist",
   a1_html: "Die Waage startet und fragt nach <b>WLAN</b>. Wählen Sie Ihr Netz auf dem Touchscreen.",
@@ -196,7 +202,7 @@ de: {
   a3_html: "Führen Sie <b>Einstellungen &rarr; Kalibrierung</b> mit einem Gegenstand bekannten Gewichts aus.",
   a4: "Legen Sie eine getaggte Spule auf die Plattform. Sie meldet sich selbst.",
   trouble_t: "Kein Leser erkannt?",
-  trouble_b_html: "Die Leser sprechen über UART mit der Platine, und das ist die einzige Verdrahtung, die die veröffentlichte Firmware unterstützt. Prüfen Sie, dass beide Schalter jedes PN532-Moduls auf OFF stehen und dass TX jedes Moduls auf RX der Platine geht und nicht auf deren TX. Alles Weitere steht im <a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">Fehlerbehebungs-Leitfaden</a>.",
+  trouble_b_html: "Die Leser sprechen über UART mit der Platine, und das ist die einzige Verdrahtung, die die veröffentlichte Firmware unterstützt. Prüfen Sie, dass beide Schalter jedes PN532-Moduls auf OFF stehen und dass TX jedes Moduls auf RX der Platine geht und nicht auf deren TX. Alles Weitere steht im <a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">Fehlerbehebungs-Leitfaden</a>.",
 
   cart_stl: "Druckbares Gehäuse herunterladen (3MF)",
   f_source: "Quellcode", f_wiring: "Verdrahtung", f_enclosure: "Gehäuse",
@@ -222,6 +228,8 @@ de: {
 },
 
 es: {
+  fork_notice: "Firmware de una versión comunitaria, no de la versión oficial.",
+  jc_wiring: "Placa Guition — cableado diferente; consulta esta guía.",
   lang_name: "Español",
   h1_install: "Fabricar e instalar",
   tagline: "Compre las piezas, conéctelas, luego enchufe la placa al ordenador y pulse un botón. No hay nada que instalar en su ordenador.",
@@ -252,12 +260,12 @@ es: {
   s2_note: "Su navegador habla directamente con la placa. No se envía ningún archivo a ninguna parte.",
   s2_help: "Se abrirá una ventana con los puertos serie del ordenador. Elija el que apareció al conectar la placa y confirme.",
   unsup_t: "Este navegador no puede grabar una placa",
-  unsup_b_html: 'Grabar necesita Web Serial, que solo ofrecen <b>Chrome</b>, <b>Edge</b> y <b>Opera</b> en ordenador. Safari y Firefox no lo tienen, ni ningún navegador de móvil. También puede grabar desde un terminal — vea la <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">guía de instalación</a>.',
+  unsup_b_html: 'Grabar necesita Web Serial, que solo ofrecen <b>Chrome</b>, <b>Edge</b> y <b>Opera</b> en ordenador. Safari y Firefox no lo tienen, ni ningún navegador de móvil. También puede grabar desde un terminal — vea la <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">guía de instalación</a>.',
   erase_t: "La primera instalación borra la placa",
   erase_b: "Borra todo, incluida cualquier contraseña WiFi guardada, y escribe el bootloader, la tabla de particiones, el firmware y la interfaz web. Es justo lo que se quiere en una placa recién montada.",
   erase_u_html: 'Para actualizar una báscula que ya funciona, use <b>Ajustes &rarr; Actualizar</b> en su pantalla. Conserva sus ajustes.',
   noport_t: "¿No se detecta ningún puerto COM?",
-  noport_b_html: 'Puede que falte un controlador para su sistema. Siga la <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">guía de instalación del controlador</a>.',
+  noport_b_html: 'Puede que falte un controlador para su sistema. Siga la <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">guía de instalación del controlador</a>.',
 
   s3_title: "Cuando termine",
   a1_html: "La báscula arranca y pide el <b>WiFi</b>. Elija su red en la pantalla táctil.",
@@ -265,7 +273,7 @@ es: {
   a3_html: "Ejecute <b>Ajustes &rarr; Calibración</b> con un objeto de peso conocido.",
   a4: "Ponga una bobina etiquetada en la plataforma. Se identifica sola.",
   trouble_t: "¿Ningún lector detectado?",
-  trouble_b_html: "Los lectores hablan con la placa por UART, y ese es el único cableado que admite el firmware publicado. Compruebe que los dos interruptores de cada módulo PN532 están en OFF y que el TX de cada módulo va al RX de la placa y no a su TX. Todo lo demás está en la <a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">guía de resolución de problemas</a>.",
+  trouble_b_html: "Los lectores hablan con la placa por UART, y ese es el único cableado que admite el firmware publicado. Compruebe que los dos interruptores de cada módulo PN532 están en OFF y que el TX de cada módulo va al RX de la placa y no a su TX. Todo lo demás está en la <a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">guía de resolución de problemas</a>.",
 
   cart_stl: "Descargar la carcasa imprimible (3MF)",
   f_source: "Código", f_wiring: "Cableado", f_enclosure: "Carcasa",
@@ -291,6 +299,8 @@ es: {
 },
 
 it: {
+  fork_notice: "Firmware di un fork della comunità, non la versione ufficiale.",
+  jc_wiring: "Scheda Guition — cablaggio diverso; consulta questa guida.",
   lang_name: "Italiano",
   h1_install: "Costruisci e installa",
   tagline: "Compra i pezzi, collegali, poi collega la scheda al computer e premi un pulsante. Non c'è nulla da installare sul computer.",
@@ -321,12 +331,12 @@ it: {
   s2_note: "Il browser parla direttamente con la scheda. Nessun file viene inviato da nessuna parte.",
   s2_help: "Si aprirà una finestra con le porte seriali del computer. Scegli quella comparsa quando hai collegato la scheda e conferma.",
   unsup_t: "Questo browser non può programmare una scheda",
-  unsup_b_html: 'La programmazione richiede Web Serial, offerto solo da <b>Chrome</b>, <b>Edge</b> e <b>Opera</b> su computer. Safari e Firefox non lo hanno, e nemmeno i browser per telefono. Puoi anche programmare da terminale — vedi la <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">guida all\'installazione</a>.',
+  unsup_b_html: 'La programmazione richiede Web Serial, offerto solo da <b>Chrome</b>, <b>Edge</b> e <b>Opera</b> su computer. Safari e Firefox non lo hanno, e nemmeno i browser per telefono. Puoi anche programmare da terminale — vedi la <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">guida all\'installazione</a>.',
   erase_t: "La prima installazione cancella la scheda",
   erase_b: "Cancella tutto, compresa un'eventuale password WiFi salvata, e scrive bootloader, tabella delle partizioni, firmware e interfaccia web. È esattamente ciò che serve su una scheda appena montata.",
   erase_u_html: 'Per aggiornare una bilancia già funzionante usa <b>Impostazioni &rarr; Aggiornamento</b> sul suo schermo. Le impostazioni restano.',
   noport_t: "Nessuna porta COM rilevata?",
-  noport_b_html: "Potrebbe mancare un driver per il tuo sistema. Segui la <a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md\">guida all'installazione del driver</a>.",
+  noport_b_html: "Potrebbe mancare un driver per il tuo sistema. Segui la <a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md\">guida all'installazione del driver</a>.",
 
   s3_title: "Quando ha finito",
   a1_html: "La bilancia si avvia e chiede il <b>WiFi</b>. Scegli la tua rete sul touchscreen.",
@@ -334,7 +344,7 @@ it: {
   a3_html: "Esegui <b>Impostazioni &rarr; Calibrazione</b> con un oggetto di peso noto.",
   a4: "Metti una bobina con tag sulla piattaforma. Si identifica da sola.",
   trouble_t: "Nessun lettore rilevato?",
-  trouble_b_html: "I lettori parlano con la scheda via UART, ed è l’unico cablaggio supportato dal firmware pubblicato. Controlla che entrambi gli interruttori di ogni modulo PN532 siano su OFF e che il TX di ogni modulo vada sull’RX della scheda e non sul suo TX. Tutto il resto è nella <a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">guida alla risoluzione dei problemi</a>.",
+  trouble_b_html: "I lettori parlano con la scheda via UART, ed è l’unico cablaggio supportato dal firmware pubblicato. Controlla che entrambi gli interruttori di ogni modulo PN532 siano su OFF e che il TX di ogni modulo vada sull’RX della scheda e non sul suo TX. Tutto il resto è nella <a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">guida alla risoluzione dei problemi</a>.",
 
   cart_stl: "Scarica il contenitore stampabile (3MF)",
   f_source: "Sorgenti", f_wiring: "Cablaggio", f_enclosure: "Contenitore",
@@ -360,6 +370,8 @@ it: {
 },
 
 pl: {
+  fork_notice: "Oprogramowanie wersji społecznościowej, a nie oficjalnego wydania.",
+  jc_wiring: "Płytka Guition — inne okablowanie; zobacz ten poradnik.",
   lang_name: "Polski",
   h1_install: "Zbuduj i zainstaluj",
   tagline: "Kup części, połącz je, potem podłącz płytkę do komputera i naciśnij jeden przycisk. Na komputerze nie trzeba nic instalować.",
@@ -390,12 +402,12 @@ pl: {
   s2_note: "Przeglądarka rozmawia z płytką bezpośrednio. Żaden plik nigdzie nie jest wysyłany.",
   s2_help: "Otworzy się okno z portami szeregowymi komputera. Wybierz ten, który pojawił się po podłączeniu płytki, i potwierdź.",
   unsup_t: "Ta przeglądarka nie może zaprogramować płytki",
-  unsup_b_html: 'Programowanie wymaga Web Serial, które mają tylko <b>Chrome</b>, <b>Edge</b> i <b>Opera</b> na komputerze. Safari i Firefox go nie mają, żadna przeglądarka na telefonie też nie. Można też programować z terminala — zobacz <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">przewodnik instalacji</a>.',
+  unsup_b_html: 'Programowanie wymaga Web Serial, które mają tylko <b>Chrome</b>, <b>Edge</b> i <b>Opera</b> na komputerze. Safari i Firefox go nie mają, żadna przeglądarka na telefonie też nie. Można też programować z terminala — zobacz <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">przewodnik instalacji</a>.',
   erase_t: "Pierwsza instalacja czyści płytkę",
   erase_b: "Kasuje wszystko, łącznie z zapisanym hasłem WiFi, i zapisuje bootloader, tablicę partycji, firmware oraz interfejs webowy. Dokładnie tego chcesz na świeżo zmontowanej płytce.",
   erase_u_html: 'Aby zaktualizować działającą już wagę, użyj <b>Ustawienia &rarr; Aktualizacja</b> na jej ekranie. Ustawienia zostaną zachowane.',
   noport_t: "Nie wykryto portu COM?",
-  noport_b_html: 'Może brakować sterownika dla Twojego systemu. Skorzystaj z <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">przewodnika instalacji sterownika</a>.',
+  noport_b_html: 'Może brakować sterownika dla Twojego systemu. Skorzystaj z <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">przewodnika instalacji sterownika</a>.',
 
   s3_title: "Gdy się skończy",
   a1_html: "Waga uruchamia się i pyta o <b>WiFi</b>. Wybierz swoją sieć na ekranie dotykowym.",
@@ -403,7 +415,7 @@ pl: {
   a3_html: "Uruchom <b>Ustawienia &rarr; Kalibracja</b> z przedmiotem o znanej wadze.",
   a4: "Połóż otagowaną szpulę na platformie. Sama się rozpozna.",
   trouble_t: "Nie wykryto czytnika?",
-  trouble_b_html: "Czytniki rozmawiają z płytką przez UART i jest to jedyne okablowanie obsługiwane przez opublikowany firmware. Sprawdź, czy oba przełączniki każdego modułu PN532 są w pozycji OFF i czy TX każdego modułu trafia do RX płytki, a nie do jej TX. Reszta jest w <a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">przewodniku rozwiązywania problemów</a>.",
+  trouble_b_html: "Czytniki rozmawiają z płytką przez UART i jest to jedyne okablowanie obsługiwane przez opublikowany firmware. Sprawdź, czy oba przełączniki każdego modułu PN532 są w pozycji OFF i czy TX każdego modułu trafia do RX płytki, a nie do jej TX. Reszta jest w <a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">przewodniku rozwiązywania problemów</a>.",
 
   cart_stl: "Pobierz obudowę do druku (3MF)",
   f_source: "Kod", f_wiring: "Okablowanie", f_enclosure: "Obudowa",
@@ -429,6 +441,8 @@ pl: {
 },
 
 pt: {
+  fork_notice: "Firmware de um fork da comunidade, não da versão oficial.",
+  jc_wiring: "Placa Guition — ligação diferente; consulte este guia.",
   lang_name: "Português (BR)",
   h1_install: "Monte e instale",
   tagline: "Compre as peças, ligue os fios, depois conecte a placa ao computador e clique em um botão. Não há nada para instalar no seu computador.",
@@ -459,12 +473,12 @@ pt: {
   s2_note: "Seu navegador fala direto com a placa. Nenhum arquivo é enviado para lugar nenhum.",
   s2_help: "Vai abrir uma janela com as portas seriais do computador. Escolha a que apareceu quando você conectou a placa e confirme.",
   unsup_t: "Este navegador não consegue gravar uma placa",
-  unsup_b_html: 'Gravar exige Web Serial, que só <b>Chrome</b>, <b>Edge</b> e <b>Opera</b> no computador oferecem. Safari e Firefox não têm, nem nenhum navegador de celular. Você também pode gravar pelo terminal — veja o <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">guia de instalação</a>.',
+  unsup_b_html: 'Gravar exige Web Serial, que só <b>Chrome</b>, <b>Edge</b> e <b>Opera</b> no computador oferecem. Safari e Firefox não têm, nem nenhum navegador de celular. Você também pode gravar pelo terminal — veja o <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">guia de instalação</a>.',
   erase_t: "A primeira instalação apaga a placa",
   erase_b: "Ela apaga tudo, inclusive qualquer senha de WiFi salva, e grava o bootloader, a tabela de partições, o firmware e a interface web. É exatamente o que se quer numa placa recém-montada.",
   erase_u_html: 'Para atualizar uma balança que já funciona, use <b>Configurações &rarr; Atualização</b> na tela dela. Suas configurações são mantidas.',
   noport_t: "Nenhuma porta COM detectada?",
-  noport_b_html: 'Pode faltar um driver para o seu sistema. Siga o <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">guia de instalação do driver</a>.',
+  noport_b_html: 'Pode faltar um driver para o seu sistema. Siga o <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">guia de instalação do driver</a>.',
 
   s3_title: "Quando terminar",
   a1_html: "A balança liga e pede o <b>WiFi</b>. Escolha sua rede na tela sensível ao toque.",
@@ -472,7 +486,7 @@ pt: {
   a3_html: "Rode <b>Configurações &rarr; Calibração</b> com um objeto de peso conhecido.",
   a4: "Coloque um carretel com tag na plataforma. Ele se identifica sozinho.",
   trouble_t: "Nenhum leitor detectado?",
-  trouble_b_html: "Os leitores falam com a placa por UART, e essa é a única ligação suportada pelo firmware publicado. Verifique se as duas chaves de cada módulo PN532 estão em OFF e se o TX de cada módulo vai para o RX da placa, e não para o TX dela. Todo o resto está no <a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">guia de solução de problemas</a>.",
+  trouble_b_html: "Os leitores falam com a placa por UART, e essa é a única ligação suportada pelo firmware publicado. Verifique se as duas chaves de cada módulo PN532 estão em OFF e se o TX de cada módulo vai para o RX da placa, e não para o TX dela. Todo o resto está no <a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">guia de solução de problemas</a>.",
 
   cart_stl: "Baixar o gabinete imprimível (3MF)",
   f_source: "Código", f_wiring: "Ligações", f_enclosure: "Gabinete",
@@ -498,6 +512,8 @@ pt: {
 },
 
 "pt-pt": {
+  fork_notice: "Firmware de uma versão comunitária, não da versão oficial.",
+  jc_wiring: "Placa Guition — cablagem diferente; consulte este guia.",
   lang_name: "Português (PT)",
   h1_install: "Construa e instale",
   tagline: "Compre as peças, ligue os fios, depois ligue a placa ao computador e carregue num botão. Não há nada para instalar no seu computador.",
@@ -528,12 +544,12 @@ pt: {
   s2_note: "O seu navegador fala directamente com a placa. Nenhum ficheiro é enviado para lado nenhum.",
   s2_help: "Abrirá uma janela com as portas série do computador. Escolha a que apareceu quando ligou a placa e confirme.",
   unsup_t: "Este navegador não consegue gravar uma placa",
-  unsup_b_html: 'Gravar exige Web Serial, que só <b>Chrome</b>, <b>Edge</b> e <b>Opera</b> no computador oferecem. O Safari e o Firefox não o têm, nem nenhum navegador de telemóvel. Também pode gravar a partir de um terminal — veja o <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">guia de instalação</a>.',
+  unsup_b_html: 'Gravar exige Web Serial, que só <b>Chrome</b>, <b>Edge</b> e <b>Opera</b> no computador oferecem. O Safari e o Firefox não o têm, nem nenhum navegador de telemóvel. Também pode gravar a partir de um terminal — veja o <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">guia de instalação</a>.',
   erase_t: "A primeira instalação apaga a placa",
   erase_b: "Apaga tudo, incluindo qualquer palavra-passe de WiFi guardada, e grava o bootloader, a tabela de partições, o firmware e a interface web. É exactamente o que se quer numa placa acabada de montar.",
   erase_u_html: 'Para actualizar uma balança que já funciona, use <b>Definições &rarr; Actualização</b> no ecrã dela. As suas definições mantêm-se.',
   noport_t: "Nenhuma porta COM detetada?",
-  noport_b_html: 'Pode faltar um controlador para o seu sistema. Siga o <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">guia de instalação do controlador</a>.',
+  noport_b_html: 'Pode faltar um controlador para o seu sistema. Siga o <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">guia de instalação do controlador</a>.',
 
   s3_title: "Quando terminar",
   a1_html: "A balança arranca e pede o <b>WiFi</b>. Escolha a sua rede no ecrã táctil.",
@@ -541,7 +557,7 @@ pt: {
   a3_html: "Execute <b>Definições &rarr; Calibração</b> com um objecto de peso conhecido.",
   a4: "Ponha uma bobina com etiqueta na plataforma. Identifica-se sozinha.",
   trouble_t: "Nenhum leitor detectado?",
-  trouble_b_html: "Os leitores falam com a placa por UART, e essa é a única ligação suportada pelo firmware publicado. Verifique se os dois interruptores de cada módulo PN532 estão em OFF e se o TX de cada módulo vai para o RX da placa, e não para o TX dela. Tudo o resto está no <a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">guia de resolução de problemas</a>.",
+  trouble_b_html: "Os leitores falam com a placa por UART, e essa é a única ligação suportada pelo firmware publicado. Verifique se os dois interruptores de cada módulo PN532 estão em OFF e se o TX de cada módulo vai para o RX da placa, e não para o TX dela. Tudo o resto está no <a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">guia de resolução de problemas</a>.",
 
   cart_stl: "Transferir a caixa imprimível (3MF)",
   f_source: "Código", f_wiring: "Ligações", f_enclosure: "Caixa",
@@ -567,6 +583,8 @@ pt: {
 },
 
 zh: {
+  fork_notice: "社区分支固件，非官方版本。",
+  jc_wiring: "Guition 开发板 — 接线不同，请参阅此指南。",
   lang_name: "中文",
   h1_install: "组装与安装",
   tagline: "买齐零件、接好线，然后把电路板连到电脑，点一个按钮。电脑上什么都不用装。",
@@ -597,12 +615,12 @@ zh: {
   s2_note: "浏览器直接和电路板通信。不会有任何文件被上传。",
   s2_help: "会弹出一个窗口列出电脑上的串口。选插上板子后新出现的那一个，然后确认。",
   unsup_t: "这个浏览器无法烧录",
-  unsup_b_html: '烧录需要 Web Serial，目前只有电脑上的 <b>Chrome</b>、<b>Edge</b> 和 <b>Opera</b> 支持。Safari 和 Firefox 没有，手机浏览器也没有。也可以用命令行烧录 — 见<a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">安装指南</a>。',
+  unsup_b_html: '烧录需要 Web Serial，目前只有电脑上的 <b>Chrome</b>、<b>Edge</b> 和 <b>Opera</b> 支持。Safari 和 Firefox 没有，手机浏览器也没有。也可以用命令行烧录 — 见<a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">安装指南</a>。',
   erase_t: "第一次安装会清空电路板",
   erase_b: "它会擦掉板上所有内容，包括已保存的 WiFi 密码，然后写入引导程序、分区表、固件和网页界面。对刚装好的板子来说，这正是你要的。",
   erase_u_html: '要更新已经在用的秤，请在它自己的屏幕上用<b>设置 &rarr; 更新</b>。设置会保留。',
   noport_t: "没有检测到 COM 端口？",
-  noport_b_html: '你的系统可能缺少驱动程序。请按照<a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">驱动安装指南</a>操作。',
+  noport_b_html: '你的系统可能缺少驱动程序。请按照<a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">驱动安装指南</a>操作。',
 
   s3_title: "装完之后",
   a1_html: "秤会启动并询问 <b>WiFi</b>。在触摸屏上选择你的网络。",
@@ -610,7 +628,7 @@ zh: {
   a3_html: "用一个已知重量的物品运行<b>设置 &rarr; 校准</b>。",
   a4: "把带标签的线轴放到托盘上，它会自己识别。",
   trouble_t: "没检测到读卡器？",
-  trouble_b_html: "读卡器通过 UART 与主板通信，这也是发布固件支持的唯一接法。请确认每个 PN532 模块的两个拨码开关都在 OFF，且模块的 TX 接到主板的 RX 而不是 TX。其余问题见<a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">故障排查指南</a>。",
+  trouble_b_html: "读卡器通过 UART 与主板通信，这也是发布固件支持的唯一接法。请确认每个 PN532 模块的两个拨码开关都在 OFF，且模块的 TX 接到主板的 RX 而不是 TX。其余问题见<a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">故障排查指南</a>。",
 
   cart_stl: "下载可打印外壳 (3MF)",
   f_source: "源码", f_wiring: "接线", f_enclosure: "外壳",
@@ -636,6 +654,8 @@ zh: {
 },
 
 ru: {
+  fork_notice: "Прошивка независимого форка, а не официальный выпуск.",
+  jc_wiring: "Плата Guition — другое подключение; см. это руководство.",
   lang_name: "Русский",
   h1_install: "Сборка и установка",
   tagline: "Купите детали, соедините их проводами, затем подключите плату к компьютеру и нажмите одну кнопку. Ничего устанавливать на компьютер не нужно.",
@@ -666,12 +686,12 @@ ru: {
   s2_note: "Браузер общается с платой напрямую. Никакие файлы никуда не отправляются.",
   s2_help: "В небольшом окне появится список последовательных портов компьютера. Выберите тот, который появился при подключении платы, и подтвердите.",
   unsup_t: "Этот браузер не может прошить плату",
-  unsup_b_html: 'Для прошивки нужен Web Serial, который есть только в <b>Chrome</b>, <b>Edge</b> и <b>Opera</b> на компьютере. В Safari и Firefox его нет, как и в браузерах на телефонах. Можно также прошить из терминала — см. <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">руководство по установке</a>.',
+  unsup_b_html: 'Для прошивки нужен Web Serial, который есть только в <b>Chrome</b>, <b>Edge</b> и <b>Opera</b> на компьютере. В Safari и Firefox его нет, как и в браузерах на телефонах. Можно также прошить из терминала — см. <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">руководство по установке</a>.',
   erase_t: "Первая установка стирает плату",
   erase_b: "Она стирает всё, что есть на плате, включая сохранённый пароль Wi-Fi, и записывает загрузчик, таблицу разделов, прошивку и веб-интерфейс. Для только что собранной платы это именно то, что нужно.",
   erase_u_html: 'Чтобы обновить уже работающие весы, используйте <b>Настройки &rarr; Обновление</b> на их экране. Ваши настройки сохранятся.',
   noport_t: "COM-порт не обнаружен?",
-  noport_b_html: 'Возможно, для вашей системы не хватает драйвера. Следуйте <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">руководству по установке драйвера</a>.',
+  noport_b_html: 'Возможно, для вашей системы не хватает драйвера. Следуйте <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">руководству по установке драйвера</a>.',
 
   s3_title: "Когда всё готово",
   a1_html: "Весы запустятся и запросят <b>Wi-Fi</b>. Выберите свою сеть на сенсорном экране.",
@@ -679,7 +699,7 @@ ru: {
   a3_html: "Запустите <b>Настройки &rarr; Калибровка</b> с предметом, вес которого вам известен.",
   a4: "Положите катушку с меткой на платформу. Весы распознают её сами.",
   trouble_t: "Ридер не обнаружен?",
-  trouble_b_html: "Ридеры общаются с платой по UART, и это единственная схема подключения, которую поддерживает опубликованная прошивка. Убедитесь, что оба переключателя на каждом модуле PN532 установлены в положение OFF, а TX каждого модуля подключён к RX платы, а не к её TX. Всё остальное — в <a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">руководстве по устранению неполадок</a>.",
+  trouble_b_html: "Ридеры общаются с платой по UART, и это единственная схема подключения, которую поддерживает опубликованная прошивка. Убедитесь, что оба переключателя на каждом модуле PN532 установлены в положение OFF, а TX каждого модуля подключён к RX платы, а не к её TX. Всё остальное — в <a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">руководстве по устранению неполадок</a>.",
 
   cart_stl: "Скачать корпус для печати (3MF)",
   f_source: "Исходный код", f_wiring: "Схема подключения", f_enclosure: "Корпус",
@@ -705,6 +725,8 @@ ru: {
 },
 
 nl: {
+  fork_notice: "Firmware van een communityfork, niet de officiële versie.",
+  jc_wiring: "Guition-bord — andere bedrading; zie deze handleiding.",
   lang_name: "Nederlands",
   h1_install: "Bouwen en installeren",
   tagline: "Koop de onderdelen, sluit ze aan, steek dan het bord in je computer en druk op één knop. Je hoeft niets op je computer te installeren.",
@@ -735,12 +757,12 @@ nl: {
   s2_note: "Je browser praat rechtstreeks met het bord. Er wordt geen enkel bestand ergens naartoe verstuurd.",
   s2_help: "Een klein venster toont de seriële poorten van je computer. Kies de poort die verscheen toen je het bord aansloot en bevestig.",
   unsup_t: "Deze browser kan geen bord flashen",
-  unsup_b_html: 'Flashen vereist Web Serial, dat alleen <b>Chrome</b>, <b>Edge</b> en <b>Opera</b> op een computer bieden. Safari en Firefox hebben het niet, en geen enkele telefoonbrowser heeft het. Je kunt ook flashen vanaf een terminal — zie de <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">installatiehandleiding</a>.',
+  unsup_b_html: 'Flashen vereist Web Serial, dat alleen <b>Chrome</b>, <b>Edge</b> en <b>Opera</b> op een computer bieden. Safari en Firefox hebben het niet, en geen enkele telefoonbrowser heeft het. Je kunt ook flashen vanaf een terminal — zie de <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md">installatiehandleiding</a>.',
   erase_t: "De eerste installatie wist het bord",
   erase_b: "Ze wist alles erop, inclusief een opgeslagen wifi-wachtwoord, en schrijft de bootloader, de partitietabel, de firmware en de webinterface. Dat is precies wat je wilt op een bord dat je net hebt gebouwd.",
   erase_u_html: 'Om een weegschaal bij te werken die al werkt, gebruik je <b>Instellingen &rarr; Update</b> op het eigen scherm. Je instellingen blijven behouden.',
   noport_t: "Geen COM-poort gevonden?",
-  noport_b_html: 'Mogelijk ontbreekt een driver voor je systeem. Volg de <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">installatiehandleiding voor de driver</a>.',
+  noport_b_html: 'Mogelijk ontbreekt een driver voor je systeem. Volg de <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/SERIAL-PORT.md">installatiehandleiding voor de driver</a>.',
 
   s3_title: "Als het klaar is",
   a1_html: "De weegschaal start op en vraagt om <b>wifi</b>. Kies je netwerk op het touchscreen.",
@@ -748,7 +770,7 @@ nl: {
   a3_html: "Voer <b>Instellingen &rarr; Kalibratie</b> uit met een voorwerp waarvan je het gewicht kent.",
   a4: "Leg een spoel met tag op het platform. Die wordt vanzelf herkend.",
   trouble_t: "Geen lezer gevonden?",
-  trouble_b_html: "De lezers praten via UART met het bord, en dat is de enige bedrading die de gepubliceerde firmware ondersteunt. Controleer of beide schakelaars op elke PN532-module op OFF staan en of de TX van elke module naar de RX van het bord gaat in plaats van naar de TX. De rest staat in de <a href=\"https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">probleemoplossingsgids</a>.",
+  trouble_b_html: "De lezers praten via UART met het bord, en dat is de enige bedrading die de gepubliceerde firmware ondersteunt. Controleer of beide schakelaars op elke PN532-module op OFF staan en of de TX van elke module naar de RX van het bord gaat in plaats van naar de TX. De rest staat in de <a href=\"https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md\">probleemoplossingsgids</a>.",
 
   cart_stl: "Download de printbare behuizing (3MF)",
   f_source: "Broncode", f_wiring: "Bedrading", f_enclosure: "Behuizing",

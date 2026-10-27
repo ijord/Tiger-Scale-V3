@@ -110,7 +110,7 @@ def main():
                 f"line. Do not just bump the number: the point is the re-reading")
 
     # --- links --------------------------------------------------------------
-    for link in re.findall(r"https://github\.com/TigerTag-Project/Tiger-Scale-V3/"
+    for link in re.findall(r"https://github\.com/(?:TigerTag-Project|ijord)/Tiger-Scale-V3/"
                            r"blob/main/(\S+?)\)", text):
         if not (ROOT / link).exists():
             problems.append(f"llms.txt links to {link}, which does not exist")

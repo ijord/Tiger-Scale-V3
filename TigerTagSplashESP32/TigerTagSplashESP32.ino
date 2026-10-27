@@ -556,11 +556,11 @@ const char* TIGERTAG_FIREBASE_WEB_API_KEY = "AIzaSyCkxPTs_Cv0KVLqsZj-UKWWqIY0Otf
 
 // Embedded build identity — exposed via /api/status and the heartbeat so the
 // app/Studio can compare against the latest published version.json.
-#define TIGERSCALE_FW_VERSION  "3.10.0"
+#define TIGERSCALE_FW_VERSION  "3.11.0"
 
 // Which board this binary was built for, as it appears on the silkscreen. The
 // published manifest keys its per-board firmware entries by exactly this
-// string. The web installer offers the two published Waveshare names — a buyer chooses
+// string. The web installer offers all three supported boards — a buyer chooses
 // by looking at their board rather than by understanding a transport.
 #if TS_BOARD_JC3248
 #define TIGERSCALE_BOARD_ID    "jc3248w535"
@@ -578,7 +578,7 @@ const char* TIGERTAG_FIREBASE_WEB_API_KEY = "AIzaSyCkxPTs_Cv0KVLqsZj-UKWWqIY0Otf
 // different hardware (ESP32-WROOM / RC522 / OLED) and its firmware.bin would
 // brick a V3 unit; sharing one version.json between the two generations would
 // mean each offering the other's binary as an update.
-const char* TIGERSCALE_VERSION_URL = "https://tigertag-project.github.io/Tiger-Scale-V3/version.json";
+const char* TIGERSCALE_VERSION_URL = "https://ijord.github.io/Tiger-Scale-V3/version.json";
 
 // How often to poll the Firestore command queue (commands/{id} subcollection).
 // Reuses the heartbeat tick (every 30 s) so we don't add a separate timer.

@@ -16,15 +16,16 @@ no equivalent include path. PlatformIO is the only supported toolchain.
 ## Which build do I need?
 
 Two things are fixed at **compile time**: which display board you have, and how
-your PN532 modules are wired. Both published builds assume the HSU / UART wiring,
-which is what the build guide describes and what every scale in use is built on.
+your PN532 modules are wired. All three published builds use HSU / UART readers.
+Follow the wiring guide for your board.
 
 | Your board | Build env | Published |
 |------------|-----------|-----------|
 | ESP32-S3-Touch-LCD-3.5**B** | `esp32s3_hsu_b` | yes — the default in the web installer |
 | ESP32-S3-Touch-LCD-3.5 (no B) | `esp32s3_hsu` | yes |
+| JC3248W535 / JC3248W535C | `jc3248w535_hsu` | yes — [Guition wiring](JC3248W535.md) |
 
-Read the white silkscreen on your board, just under the ribbon connector: it
+On a Waveshare board, read the white silkscreen under the ribbon connector: it
 either ends with a B or it does not. The two are the same size and take the same
 wiring, but their screen controllers differ (AXS15231B over QSPI on the B,
 ST7796 over SPI on the other), so the wrong image leaves you with a board that
@@ -45,21 +46,43 @@ Wiring diagrams for each: [HARDWARE.md](HARDWARE.md#nfc-wiring--pick-one-then-bu
 
 ### Easiest: the web installer
 
-<https://tigertag-project.github.io/Tiger-Scale-V3/>
+<https://ijord.github.io/Tiger-Scale-V3/>
 
-Plug the board in, choose your NFC wiring, click Install. It writes the bootloader,
+This installer serves **ijord's TigerScale V3+ fork**. Choose your exact board:
+Waveshare -3.5B, Waveshare -3.5, or Guition JC3248W535 / JC3248W535C.
+All three builds use two HSU (UART) readers; the Guition board has
+[different wiring](JC3248W535.md).
+
+Plug the board in, choose your board, click Install. It writes the bootloader,
 partition table, firmware and web UI in one go. Chrome, Edge or Opera on a desktop —
 Web Serial is not available in Safari, Firefox or on mobile.
 
 Note it **erases the board**, saved WiFi included. That is right for new hardware; to
 update a scale already in use, see [Updating later](#updating-later).
 
+### Publishing this fork's installer
+
+The browser installer uses release assets from `ijord/Tiger-Scale-V3`; it does
+not fall back to official firmware. Before its first installation:
+
+1. Enable GitHub Actions in the fork, then set **Settings → Pages → Source** to
+   **GitHub Actions**.
+2. Prepare a new release version and notes with `scripts/bump-version.sh`.
+   Commit the changes and push a new `v<version>` tag for that commit. The tag
+   must match `TIGERSCALE_FW_VERSION`; do not reuse an inherited upstream tag.
+3. Wait for the `release` workflow to build all three boards and deploy Pages.
+   Running `release` manually is a dry run and does not publish anything.
+
+The `pages` workflow can then refresh the installer without rebuilding firmware.
+It downloads this fork's latest release and verifies the served images against
+that release. Newly built firmware also checks this fork's update manifest.
+
 ### From source
 
 **One command.** On a board that has never been flashed, this is the whole job:
 
 ```bash
-git clone https://github.com/TigerTag-Project/Tiger-Scale-V3.git
+git clone https://github.com/ijord/Tiger-Scale-V3.git
 cd Tiger-Scale-V3
 
 bash scripts/flash.sh --fs
@@ -129,27 +152,25 @@ explains why.
 
 ## Updating later
 
-### Over the air — for firmware
+### Over the air — for firmware and web UI
 
-**Settings → Update** on the touchscreen checks the published manifest and installs
-a newer firmware with a progress bar. Nothing to plug in.
+**Settings → Update** on the touchscreen checks this fork's published manifest
+and installs the web UI filesystem followed by the firmware, with a progress
+bar. Nothing to plug in once the fork and the current partition table are installed.
 
 > [!WARNING]
-> **Firmware update over the air does not work on the current partition table.**
-> `app0` is a single `factory` partition with no `ota_0`/`ota_1` slot beside it, so
-> the ESP-IDF OTA machinery has nowhere to write the new image and the install fails
-> with `Update.begin failed (need=… free=0)`. The updater checks for this and shows
-> "Update over USB" instead of starting. Updating the **web UI** over the air does
-> work. Reflash firmware over USB until the partition table gains a second app slot.
+> **Older single-slot partition tables need a USB reflash first.** The current
+> table has `ota_0` and `ota_1` application slots. A device still using the old
+> single `factory` slot has nowhere to write a firmware update; the updater
+> shows "Update over USB". Flash the partition table, firmware and filesystem
+> over USB using `scripts/flash.sh --fs` for the correct board. An OTA update
+> cannot replace the partition table.
 
-Two further limits worth knowing:
+Two further details:
 
-- **OTA replaces the firmware only — not the web UI.** The manifest published on
-  GitHub Pages carries a `firmware_url` and nothing else, so a release that changes
-  anything under `data/` still needs a USB `--fs` upload. (The firmware itself does
-  accept a `littlefs_url`, via its local `POST /api/ota/update` endpoint and the
-  remote command queue, so an app can push a filesystem update — but the
-  self-service Settings → Update path cannot.)
+- **Firmware and web UI are separate images.** This fork publishes both in its
+  manifest. The updater writes the filesystem first, then the firmware before
+  restarting. Older manifests without a filesystem URL update only firmware.
 - **Published builds assume the HSU wiring** — one per board, and nothing for SPI
   or I²C. A unit wired either way that takes a published update comes back on the
   HSU build and loses its reader until reflashed over USB.

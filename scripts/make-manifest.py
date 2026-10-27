@@ -64,6 +64,7 @@ OFFSETS = {
 BOARDS = [
     ("esp32s3_hsu_b", "3.5b", "ESP32-S3-Touch-LCD-3.5B", "The board whose silkscreen ends in B"),
     ("esp32s3_hsu",   "3.5",  "ESP32-S3-Touch-LCD-3.5",  "The board whose silkscreen has no B"),
+    ("jc3248w535_hsu", "jc3248w535", "JC3248W535 / JC3248W535C", "Guition board with its own wiring"),
 ]
 
 # The flat OTA keys describe this build and no other. Every -3.5B ever shipped
@@ -165,7 +166,7 @@ def main():
             "flat version/firmware_url/firmware_sha keys are what an "
             "ESP32-S3-Touch-LCD-3.5B reads in otaFetchLatest(); do not move, "
             "rename or repoint them. A -3.5 reads boards['3.5'] instead. "
-            "`builds` carries both published boards for the web installer."
+            "`builds` carries all three published boards for the web installer."
         ),
         # --- read by the device (otaFetchLatest) -------------------------------
         "version": args.version,
@@ -204,7 +205,7 @@ def main():
         os.makedirs(args.web_installer, exist_ok=True)
         for env, board_id, board_name, description in BOARDS:
             wt = {
-                "name": "TigerScale V3 (%s)" % board_name,
+                "name": "TigerScale V3+ (%s)" % board_name,
                 "version": args.version,
                 "funding_url": "https://buymeacoffee.com/benoitl",
                 "new_install_prompt_erase": True,

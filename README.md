@@ -34,14 +34,14 @@
 
 
 <p align="center">
-  <a href="https://tigertag-project.github.io/Tiger-Scale-V3/">
+  <a href="https://ijord.github.io/Tiger-Scale-V3/">
     <img src="assets/install-button.svg" alt="Install TigerScale from your browser" width="420">
   </a>
 </p>
 
 <p align="center">
   <a href="https://cad.onshape.com/documents/ffd8ea5573c21ddec7180c6f">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/4/45/Onshape_logo_full.png?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/4/45/Onshape_logo_full.png?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original" alt="Onshape" width="400">
     Remix the design in Onshape
   </a>
 </p>

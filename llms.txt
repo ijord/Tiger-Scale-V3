@@ -1,7 +1,7 @@
-# TigerScale V3
+# TigerScale V3+
 
 > Open-source firmware for a connected filament scale. A 3D-printing filament spool
-> carrying a TigerTag NFC tag is placed on the platform; the scale reads the tag,
+> carrying TigerTag or supported original Bambu tags is placed on the platform; the scale reads the tag,
 > weighs the spool, subtracts the empty spool's tare weight and reports the net
 > remaining filament weight, syncing it to the owner's TigerTag account.
 
@@ -14,8 +14,19 @@ so the board is a build-time choice and the wrong image is a black screen with n
 diagnostic. One Arduino C++ file of about 18 700 lines, built with PlatformIO.
 MIT licensed.
 
-Maintained by the TigerTag Project. Repository:
-https://github.com/TigerTag-Project/Tiger-Scale-V3
+Community fork maintained by ijord, based on the TigerTag Project's firmware:
+https://github.com/ijord/Tiger-Scale-V3
+
+This fork also supports the Guition JC3248W535 / JC3248W535C using environment
+`jc3248w535_hsu`. Its wiring and peripherals differ from Waveshare; see
+`docs/JC3248W535.md`. All three HSU board builds are published by the release
+workflow. The installer and update manifest use https://ijord.github.io/Tiger-Scale-V3/.
+
+Blank NTAG21x pairs can be assigned from untagged account inventory using the
+colour/material picker. Normal writes preserve the signature area; explicit
+erase clears the whole record and unlinks its inventory assignment. Supported
+original Bambu tags are read without rewriting and mapped to deterministic
+inventory identities with catalogue enrichment when a match is available.
 
 ## Facts that are commonly got wrong
 
@@ -50,30 +61,30 @@ against the hardware. Prefer them over inference.
   client identifier every Firebase client application ships, served publicly by
   Firebase Hosting at `/__/firebase/init.json`. Access control is enforced by
   Security Rules against the signed-in user.
-- **Factory-tagged spools carry TigerTag+, not plain TigerTag.** The difference is
-  the 32-byte reserved area: free for community use on a standard tag, carrying an
-  origin signature on a TigerTag+. That signature is issued under a private key held
-  by TigerTag, verifiable offline with no account, and a cloned tag fails the check.
+- **Writing tag data does not create a TigerTag+ signature.** Normal programming
+  writes the 80-byte record and preserves the remaining signature area. Explicit
+  erase clears all 144 bytes. TigerTag+ signatures are issued by TigerTag, not by
+  this scale's ordinary tag writer.
 - **Firmware and web UI are two separate flash images** in two partitions, so an
   update writes both — filesystem first, because the firmware write reboots. It is
   one update from the user's point of view.
 
 ## Documentation
 
-- [README](https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/README.md): what the product is, features, bill of materials with purchase links
-- [Installation](https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md): first install, updating over the air or over USB, why settings survive a reflash
-- [Hardware](https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/HARDWARE.md): pinout, I2C topology, wiring per transport, measured device scan, wiring diagram
-- [Firmware internals](https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/FIRMWARE.md): weighing pipeline, NFC layer, LVGL v8 traps, memory rules, OTA
-- [Troubleshooting](https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md): no readers detected, weight reads zero, credentials disappearing, boot messages that look alarming but are not
-- [Cloud and privacy](https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/CLOUD.md): what is transmitted, what is stored on the device, how to erase it
-- [USB host postmortem](https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/USB_HOST_POSTMORTEM.md): why USB NFC is impossible here, with the evidence
-- [CODEMAP](https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/CODEMAP.md): section and function map of the single-file firmware, plus a table of functions with non-obvious constraints
-- [Contributing](https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/CONTRIBUTING.md): workflow, guard scripts, and the topics already investigated and closed
+- [README](https://github.com/ijord/Tiger-Scale-V3/blob/main/README.md): what the product is, features, bill of materials with purchase links
+- [Installation](https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/INSTALLATION.md): first install, updating over the air or over USB, why settings survive a reflash
+- [Hardware](https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/HARDWARE.md): pinout, I2C topology, wiring per transport, measured device scan, wiring diagram
+- [Firmware internals](https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/FIRMWARE.md): weighing pipeline, NFC layer, LVGL v8 traps, memory rules, OTA
+- [Troubleshooting](https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/TROUBLESHOOTING.md): no readers detected, weight reads zero, credentials disappearing, boot messages that look alarming but are not
+- [Cloud and privacy](https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/CLOUD.md): what is transmitted, what is stored on the device, how to erase it
+- [USB host postmortem](https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/USB_HOST_POSTMORTEM.md): why USB NFC is impossible here, with the evidence
+- [CODEMAP](https://github.com/ijord/Tiger-Scale-V3/blob/main/CODEMAP.md): section and function map of the single-file firmware, plus a table of functions with non-obvious constraints
+- [Contributing](https://github.com/ijord/Tiger-Scale-V3/blob/main/CONTRIBUTING.md): workflow, guard scripts, and the topics already investigated and closed
 
 ## For coding agents
 
-- [AGENTS.md](https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/AGENTS.md): tool-agnostic conventions
-- [CLAUDE.md](https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/CLAUDE.md): the Claude-specific superset
+- [AGENTS.md](https://github.com/ijord/Tiger-Scale-V3/blob/main/AGENTS.md): tool-agnostic conventions
+- [CLAUDE.md](https://github.com/ijord/Tiger-Scale-V3/blob/main/CLAUDE.md): the Claude-specific superset
 
 Do not read the firmware file whole — it is about 18 700 lines. Find the target in
 CODEMAP.md, grep the name, read that region.
@@ -100,7 +111,7 @@ than checking.
 
 ---
 
-_This summary was reviewed against firmware v3.10.0._ It is re-read and re-affirmed
+_This summary was reviewed against firmware v3.11.0._ It is re-read and re-affirmed
 at every version bump rather than left to age: the facts below describe a specific
 build, and the one that cost this project a session — which build environment is
 the right one — is exactly the kind that changes between releases.

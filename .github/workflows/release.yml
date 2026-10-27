@@ -13,11 +13,11 @@ name: release
 #
 # What gets published:
 #
-#   - firmware.bin and firmware.factory.bin for each of the two published boards
+#   - firmware.bin and firmware.factory.bin for each of the three published boards
 #   - bootloader.bin, partitions.bin and boot_app0.bin, which the browser
 #     installer needs to write a blank board (the OTA never touches them)
 #   - littlefs.bin — the web UI. Built once: it comes from data/ and is identical
-#     for both of them.
+#     for all three of them.
 #   - SHA256SUMS.txt
 #   - version.json on GitHub Pages, which the device polls
 #
@@ -49,7 +49,7 @@ env:
   # a manifest if it is anything else. The -3.5 is served from boards["3.5"].
   OTA_ENV: esp32s3_hsu_b
   # Published to users, in the order the installer offers them.
-  PUBLISHED_ENVS: "esp32s3_hsu_b esp32s3_hsu"
+  PUBLISHED_ENVS: "esp32s3_hsu_b esp32s3_hsu jc3248w535_hsu"
 
 jobs:
   build:
@@ -132,7 +132,7 @@ jobs:
 
       - name: Build the web UI filesystem
         run: |
-          # Identical for both boards — it is built from data/ — so once is enough.
+          # Identical for all three boards — it is built from data/ — so once is enough.
           pio run -e "$OTA_ENV" -t buildfs
 
       - name: Build every published board
@@ -181,7 +181,7 @@ jobs:
             cp ".pio/build/$e/bootloader.bin"  "pages/firmware/bootloader-$e.bin"
             cp ".pio/build/$e/partitions.bin"  "pages/firmware/partitions-$e.bin"
           done
-          # boot_app0 and the filesystem are identical for both boards.
+          # boot_app0 and the filesystem are identical for all three boards.
           cp "$(find ~/.platformio/packages/framework-arduinoespressif32/tools/partitions -name boot_app0.bin | head -1)" \
              pages/firmware/boot_app0.bin
           cp dist/littlefs.bin pages/firmware/littlefs.bin
@@ -210,7 +210,7 @@ jobs:
         run: |
           # Guaranteed to exist — the "Release notes must exist" gate ran first.
           gh release create "$GITHUB_REF_NAME" dist/* \
-            --title "TigerScale V3 v$VERSION" \
+            --title "TigerScale V3+ v$VERSION" \
             --notes-file "docs/release-notes/v$VERSION.md"
 
   # Publishing the page is NOT done here. pages.yml is the single thing in this

@@ -37,14 +37,13 @@ import time
 import urllib.error
 import urllib.request
 
-REPO = "TigerTag-Project/Tiger-Scale-V3"
-PAGES = "https://tigertag-project.github.io/Tiger-Scale-V3"
+REPO = "ijord/Tiger-Scale-V3"
+PAGES = "https://ijord.github.io/Tiger-Scale-V3"
 # The build behind the FLAT keys of version.json — the ones every scale in the
 # field reads. Must match FLEET_ENV in make-manifest.py.
 OTA_ENV = "esp32s3_hsu_b"
-# The -3.5 build, served from boards["3.5"] instead.
-NONB_ENV = "esp32s3_hsu"
-NONB_BOARD = "3.5"
+# Other boards have their own entries and must never receive the default image.
+OTHER_BOARDS = [("3.5", "esp32s3_hsu"), ("jc3248w535", "jc3248w535_hsu")]
 
 
 def get(url, cache_bust=False):
@@ -105,23 +104,28 @@ def check(repo, pages, quiet):
         return False, ("the browser installer would flash %s while the OTA channel "
                        "serves %s" % (served[:12], rel_sha[:12]))
 
-    # The -3.5's own section. A -3.5 reads this and nothing else, so an entry that
+    # Each additional board reads its own section, so an entry that
     # is missing or points at the -3.5B image is the difference between a scale
     # that updates and one that comes back with a black screen.
     boards = live.get("boards") or {}
-    if not legacy or boards:
-        nonb = boards.get(NONB_BOARD)
+    seen_hashes = {rel_sha}
+    for board_id, env in OTHER_BOARDS:
+        nonb = boards.get(board_id)
         if not nonb:
-            return False, ("version.json carries no boards[%r] entry — every -3.5 "
-                           "is being told there is nothing to install" % NONB_BOARD)
-        nonb_rel = hashlib.sha256(get(release_asset(NONB_ENV))).hexdigest()
+            return False, ("version.json carries no boards[%r] entry — that board "
+                           "is being told there is nothing to install" % board_id)
+        nonb_rel = hashlib.sha256(get(release_asset(env))).hexdigest()
         if nonb.get("firmware_sha") != nonb_rel:
             return False, ("boards[%r] advertises %s but the release asset hashes to %s"
-                           % (NONB_BOARD, nonb.get("firmware_sha"), nonb_rel))
-        if nonb_rel == rel_sha:
-            return False, ("boards[%r] serves the same image as the flat -3.5B keys — "
-                           "one of the two boards would be flashed with the other's "
-                           "firmware" % NONB_BOARD)
+                           % (board_id, nonb.get("firmware_sha"), nonb_rel))
+        if nonb_rel in seen_hashes:
+            return False, ("boards[%r] serves the same image as another board — "
+                           "one of the boards would be flashed with the other's "
+                           "firmware" % board_id)
+        seen_hashes.add(nonb_rel)
+        served = hashlib.sha256(get("%s/firmware/firmware-%s.bin" % (pages, env))).hexdigest()
+        if served != nonb_rel:
+            return False, "the browser installer serves different firmware for %s than the release" % board_id
 
     if not quiet:
         print("Live site is current:")

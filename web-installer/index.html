@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Make &amp; Install TigerScale V3 — open-source filament scale</title>
+<title>Make &amp; Install TigerScale V3+ — open-source filament scale</title>
 <meta name="description" content="Build a TigerScale V3 and flash it from your browser: parts list with links, the wiring, and a one-click installer. No toolchain, no command line.">
 <!-- Discord and Slack print og:site_name above the title; without it the card
      is anonymous. The dimensions let them reserve the space before the image
@@ -13,16 +13,16 @@
 <meta property="og:title" content="Make &amp; Install TigerScale V3">
 <meta property="og:description" content="Parts list, wiring diagram and a one-click browser installer for the connected filament scale.">
 <meta property="og:type" content="website">
-<meta property="og:image" content="https://tigertag-project.github.io/Tiger-Scale-V3/og.jpg">
+<meta property="og:image" content="https://ijord.github.io/Tiger-Scale-V3/og.jpg">
 <meta property="og:image:type" content="image/jpeg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="A TigerScale V3 on a workbench weighing a spool of red filament, its screen reading 753 g">
-<meta property="og:url" content="https://tigertag-project.github.io/Tiger-Scale-V3/">
+<meta property="og:url" content="https://ijord.github.io/Tiger-Scale-V3/">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://tigertag-project.github.io/Tiger-Scale-V3/og.jpg">
+<meta name="twitter:image" content="https://ijord.github.io/Tiger-Scale-V3/og.jpg">
 <meta name="theme-color" content="#0a0b0f">
-<link rel="canonical" href="https://tigertag-project.github.io/Tiger-Scale-V3/">
+<link rel="canonical" href="https://ijord.github.io/Tiger-Scale-V3/">
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -32,8 +32,8 @@
   "operatingSystem": "ESP32-S3",
   "description": "Open-source firmware for a connected 3D-printing filament scale. Reads a TigerTag NFC tag, weighs the spool, subtracts the empty spool weight and reports the net filament remaining.",
   "license": "https://opensource.org/licenses/MIT",
-  "url": "https://tigertag-project.github.io/Tiger-Scale-V3/",
-  "codeRepository": "https://github.com/TigerTag-Project/Tiger-Scale-V3",
+  "url": "https://ijord.github.io/Tiger-Scale-V3/",
+  "codeRepository": "https://github.com/ijord/Tiger-Scale-V3",
   "programmingLanguage": "C++",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
   "author": { "@type": "Organization", "name": "TigerTag Project", "url": "https://tigersystem.io" }
@@ -432,8 +432,9 @@
 
 <header class="hero">
   <img class="shot" src="tigerscale.png" alt="TigerScale V3" width="760" height="760">
-  <h1><span data-i18n="h1_install">Make &amp; Install</span> <span class="accent">TigerScale V3</span></h1>
+  <h1><span data-i18n="h1_install">Make &amp; Install</span> <span class="accent">TigerScale V3+</span></h1>
   <p class="tagline" data-i18n="tagline"></p>
+  <p><a href="https://github.com/ijord/Tiger-Scale-V3">ijord / TigerScale V3+</a> · <span data-i18n="fork_notice"></span></p>
   <div class="verpill" id="verpill" hidden>
     <span class="dot"></span><span><span data-i18n="fw">Firmware</span> <b id="ver"></b></span>
   </div>
@@ -471,9 +472,16 @@
           <small data-i18n="opt_35_d"></small>
         </span>
       </label>
+      <label class="opt">
+        <input type="radio" name="env" value="jc3248w535_hsu">
+        <span>
+          <b>JC3248W535 / JC3248W535C</b>
+          <small><a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/JC3248W535.md" data-i18n="jc_wiring"></a></small>
+        </span>
+      </label>
     </div>
 
-    <details class="wiring">
+    <details class="wiring" id="waveshare-wiring">
       <summary data-i18n="wiring_btn"></summary>
       <p class="credit" data-i18n="wiring_hint"></p>
       <div class="frame">
@@ -596,7 +604,7 @@
     <div class="foot">
       <p data-i18n="cart_incl"></p>
       <p data-i18n="cart_opt"></p>
-      <p><a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/HARDWARE.md#bill-of-materials"
+      <p><a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/HARDWARE.md#bill-of-materials"
             data-i18n="cart_full"></a></p>
       <p><a href="https://makerworld.com/en/models/3161869-tigerscale-v3-best-smart-filament-scale-with-nfc#profileId-3573543"
             data-i18n="cart_stl"></a></p>
@@ -608,8 +616,8 @@
 
 <footer>
   <nav>
-    <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3" data-i18n="f_source"></a>
-    <a href="https://github.com/TigerTag-Project/Tiger-Scale-V3/blob/main/docs/HARDWARE.md" data-i18n="f_wiring"></a>
+    <a href="https://github.com/ijord/Tiger-Scale-V3" data-i18n="f_source"></a>
+    <a href="https://github.com/ijord/Tiger-Scale-V3/blob/main/docs/HARDWARE.md" data-i18n="f_wiring"></a>
     <a href="https://makerworld.com/en/models/3161869-tigerscale-v3-best-smart-filament-scale-with-nfc#profileId-3573543" data-i18n="f_enclosure"></a>
     <a href="https://discord.gg/3Qv5TSqnJH" data-i18n="f_discord"></a>
     <a href="version.json" data-i18n="f_manifest"></a>
@@ -730,6 +738,7 @@
   document.querySelectorAll('input[name=env]').forEach(r => {
     r.addEventListener('change', () => {
       installer.manifest = `manifest-${r.value}.json`;
+      document.getElementById('waveshare-wiring').hidden = r.value === 'jc3248w535_hsu';
     });
   });
 

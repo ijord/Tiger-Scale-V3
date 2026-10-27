@@ -20,21 +20,25 @@ log lives in git history and the synthesised entry lives in the changelog.
 
 ## Fixed
 
-- Normal tag programming and pair verification use only pages 0x04–0x17,
-  preserving signature pages through retries and recovery. Explicit erase clears
-  all 144 bytes to zero, matching Tiger Studio, and blank detection accepts
-  all-zero 80-byte records while rejecting partially erased data. Message
-  encoding copies exactly the first 28 UTF-8 bytes, matching the official SDKs.
-  Added pinned upstream encoding vectors and signature/erase regression checks
-  (`TigerTagSplashESP32/TigerTagSplashESP32.ino`, `scripts/test-inventory.py`,
-  `scripts/fixtures/tigertag-encoding.json`, `scripts/fixtures/README.md`,
-  `docs/FIRMWARE.md`).
+- The browser installer and firmware update channel use the fork's releases
+  and Pages site, with explicit repository/site arguments in the deployment
+  workflow. The release includes all three supported boards, including
+  JC3248W535, and deployment verification checks each board's served binary
+  against its release asset. The installer identifies the community fork and
+  links the JC3248 wiring guide in every language
+  (`.github/workflows/pages.yml`, `.github/workflows/release.yml`,
+  `scripts/fetch-published-site.py`, `scripts/make-manifest.py`,
+  `scripts/verify-published-site.py`, `TigerTagSplashESP32/TigerTagSplashESP32.ino`,
+  `platformio.ini`, `web-installer/`, `docs/INSTALLATION.md`,
+  `docs/JC3248W535.md`).
 
-- Bambu inventory creation releases its HTTPS connection before verification,
-  avoiding overlapping TLS clients after a successful save. It retries
-  transient save failures up to three times,
-  checks for an already-created pair before retrying, and refreshes expired
-  authentication. Incomplete or conflicting account pairs stop recovery without
-  overwriting existing data. Added regression coverage for transient failures,
-  retry limits, lost replies, TLS client lifetime, and permanent refusals
-  (`TigerTagSplashESP32/TigerTagSplashESP32.ino`, `scripts/test-inventory.py`).
+## Changed
+
+- Prepared the first fork release, v3.11.0, with release notes covering the
+  inventory/tag workflow, Bambu import, weight handling and supported boards
+  (`TigerTagSplashESP32/TigerTagSplashESP32.ino`, `CHANGELOG.md`,
+  `docs/release-notes/v3.11.0.md`, `llms.txt`, `scripts/check-llms-txt.py`,
+  `docs/INSTALLATION.md`).
+
+- The README's Onshape logo displays at 400 pixels wide and its browser-install
+  button opens the fork's installer (`README.md`).
